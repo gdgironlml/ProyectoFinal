@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sql_server_bodega
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=ProyectoUMG2026!
+    volumes:
+      - sql_data:/var/opt/mssql
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_bodega
+    ports:
+      - "5672:5672"   # Puerto de mensajes
+      - "15672:15672" # Interfaz Web de administración
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+    volumes:
+      - rabbit_data:/var/lib/rabbitmq
+
+volumes:
+  sql_data:
+  rabbit_data:

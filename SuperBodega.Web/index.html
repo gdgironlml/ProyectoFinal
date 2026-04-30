@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperBodega | Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-a: #f9fafc;
+            --bg-b: #e7eef9;
+            --ink: #1b2840;
+            --line: #d6dfec;
+            --brand: #0d6efd;
+        }
+
+        body {
+            min-height: 100vh;
+            color: var(--ink);
+            background: radial-gradient(circle at 0% 0%, #ffffff 0%, var(--bg-a) 40%, var(--bg-b) 100%);
+        }
+
+        .hero {
+            border-radius: 1rem;
+            background: linear-gradient(130deg, #0d6efd 0%, #0a58ca 58%, #08357a 100%);
+            color: #fff;
+            box-shadow: 0 16px 36px rgba(6, 27, 66, 0.24);
+        }
+
+        .panel {
+            border: 1px solid rgba(14, 35, 77, 0.12);
+            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.92);
+            box-shadow: 0 8px 24px rgba(17, 24, 39, 0.08);
+            backdrop-filter: blur(5px);
+        }
+
+        .dashboard-tabs .nav-link {
+            font-weight: 700;
+            color: #334155;
+            border-radius: 0.75rem 0.75rem 0 0;
+        }
+
+        .dashboard-tabs .nav-link.active {
+            color: var(--brand);
+            background: rgba(13, 110, 253, 0.1);
+        }
+
+        .small-status {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .product-card {
+            border: 1px solid var(--line);
+            border-radius: 1rem;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+        }
+
+        .table thead th {
+            font-size: 0.83rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #475569;
+            white-space: nowrap;
+        }
+
+        .table td {
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <main class="container py-4 py-lg-5">
+        <section class="hero p-4 p-lg-5 mb-4">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+                <div>
+                    <span class="badge text-bg-light text-primary mb-2">SuperBodega API</span>
+                    <h1 class="display-6 fw-bold mb-2">Dashboard Completo</h1>
+                    <p class="mb-0">Tienda, inventario y gestion de clientes/proveedores conectados a <strong>http://localhost:5253/api</strong>.</p>
+                </div>
+                <button id="btnRefrescarTodo" class="btn btn-light btn-lg">Refrescar todo</button>
+            </div>
+        </section>
+
+        <div id="alertContainer" class="mb-3"></div>
+
+        <section class="panel p-3 p-lg-4">
+            <ul class="nav nav-tabs dashboard-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-tienda" type="button" role="tab">Tienda</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-inventario" type="button" role="tab">Inventario</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-clientes-proveedores" type="button" role="tab">Clientes y Proveedores</button>
+                </li>
+            </ul>
+
+            <div class="tab-content pt-3">
+                <div class="tab-pane fade show active" id="tab-tienda" role="tabpanel">
+                    <div class="row g-3 mb-3 align-items-end">
+                        <div class="col-sm-6 col-lg-3">
+                            <label for="tiendaClienteId" class="form-label">Cliente ID para compra</label>
+                            <input id="tiendaClienteId" type="number" class="form-control" min="1" value="1">
+                        </div>
+                        <div class="col-sm-6 col-lg-3">
+                            <label for="tiendaCantidadDefault" class="form-label">Cantidad por defecto</label>
+                            <input id="tiendaCantidadDefault" type="number" class="form-control" min="1" value="1">
+                        </div>
+                        <div class="col-lg-6 text-lg-end">
+                            <span id="tiendaStatus" class="small-status">Cargando productos...</span>
+                        </div>
+                    </div>
+                    <div id="tiendaGrid" class="row g-3"></div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-inventario" role="tabpanel">
+                    <div class="row g-4">
+                        <div class="col-lg-8">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h2 class="h5 mb-0">Productos (CRUD)</h2>
+                                <span id="inventarioStatus" class="small-status">Cargando...</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nombre</th>
+                                            <th>Descripcion</th>
+                                            <th>Precio</th>
+                                            <th>Stock</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="inventarioBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="border rounded-4 bg-white p-3">
+                                <h3 class="h6 mb-3">Agregar / Editar Producto</h3>
+                                <form id="productoForm" class="row g-3">
+                                    <input type="hidden" id="productoId">
+                                    <div class="col-12">
+                                        <label for="productoNombre" class="form-label">Nombre</label>
+                                        <input id="productoNombre" type="text" class="form-control" required>
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="productoDescripcion" class="form-label">Descripcion</label>
+                                        <textarea id="productoDescripcion" class="form-control" rows="2"></textarea>
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="productoPrecio" class="form-label">Precio</label>
+                                        <input id="productoPrecio" type="number" min="0" step="0.01" class="form-control" required>
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="productoStock" class="form-label">Stock</label>
+                                        <input id="productoStock" type="number" min="0" class="form-control" required>
+                                    </div>
+                                    <div class="col-12 d-flex gap-2">
+                                        <button id="productoGuardarBtn" type="submit" class="btn btn-primary flex-grow-1">Guardar</button>
+                                        <button id="productoCancelarBtn" type="button" class="btn btn-outline-secondary">Cancelar</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="tab-clientes-proveedores" role="tabpanel">
+                    <div class="row g-4">
+                        <div class="col-lg-6">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h2 class="h5 mb-0">Clientes</h2>
+                                <span id="clientesStatus" class="small-status">Cargando...</span>
+                            </div>
+                            <div class="table-responsive mb-3">
+                                <table class="table table-striped table-hover align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nombre</th>
+                                            <th>Telefono</th>
+                                            <th>Email</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="clientesBody"></tbody>
+                                </table>
+                            </div>
+                            <form id="clienteForm" class="row g-2 border rounded-4 bg-white p-3">
+                                <h3 class="h6">Agregar Cliente</h3>
+                                <div class="col-12">
+                                    <input id="clienteNombre" type="text" class="form-control" placeholder="Nombre" required>
+                                </div>
+                                <div class="col-6">
+                                    <input id="clienteTelefono" type="text" class="form-control" placeholder="Telefono">
+                                </div>
+                                <div class="col-6">
+                                    <input id="clienteEmail" type="email" class="form-control" placeholder="Email">
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary w-100">Guardar cliente</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h2 class="h5 mb-0">Proveedores</h2>
+                                <span id="proveedoresStatus" class="small-status">Cargando...</span>
+                            </div>
+                            <div class="table-responsive mb-3">
+                                <table class="table table-striped table-hover align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Nombre</th>
+                                            <th>Telefono</th>
+                                            <th>Email</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="proveedoresBody"></tbody>
+                                </table>
+                            </div>
+                            <form id="proveedorForm" class="row g-2 border rounded-4 bg-white p-3">
+                                <h3 class="h6">Agregar Proveedor</h3>
+                                <div class="col-12">
+                                    <input id="proveedorNombre" type="text" class="form-control" placeholder="Nombre" required>
+                                </div>
+                                <div class="col-6">
+                                    <input id="proveedorTelefono" type="text" class="form-control" placeholder="Telefono">
+                                </div>
+                                <div class="col-6">
+                                    <input id="proveedorEmail" type="email" class="form-control" placeholder="Email">
+                                </div>
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary w-100">Guardar proveedor</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const API_BASE = 'http://localhost:5253/api';
+        const alertContainer = document.getElementById('alertContainer');
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function showAlert(message, type = 'success') {
+            alertContainer.innerHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${escapeHtml(message)}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                </div>
+            `;
+        }
+
+        function setStatus(id, text) {
+            document.getElementById(id).textContent = text;
+        }
+
+        function formatPrice(value) {
+            return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD' }).format(value ?? 0);
+        }
+
+        function renderEmptyRow(bodyId, colspan, message, type = 'info') {
+            document.getElementById(bodyId).innerHTML = `
+                <tr>
+                    <td colspan="${colspan}">
+                        <div class="alert alert-${type} mb-0 py-2">${escapeHtml(message)}</div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        async function apiFetch(endpoint, options = {}, action = 'realizar la solicitud') {
+            const config = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(options.headers || {})
+                },
+                ...options
+            };
+
+            let response;
+            try {
+                response = await fetch(`${API_BASE}${endpoint}`, config);
+            } catch {
+                throw new Error(`Error de conexion al ${action}. Verifica la API en http://localhost:5253.`);
+            }
+
+            if (!response.ok) {
+                let detail = '';
+                try {
+                    detail = await response.text();
+                } catch {
+                    detail = '';
+                }
+                const suffix = detail ? ` - ${detail.replace(/\s+/g, ' ').trim()}` : '';
+                throw new Error(`No fue posible ${action} (HTTP ${response.status})${suffix}`);
+            }
+
+            if (response.status === 204) {
+                return null;
+            }
+
+            const text = await response.text();
+            return text ? JSON.parse(text) : null;
+        }
+
+        async function loadTienda() {
+            setStatus('tiendaStatus', 'Cargando productos...');
+            const grid = document.getElementById('tiendaGrid');
+
+            try {
+                const productos = await apiFetch('/Productos', { method: 'GET' }, 'cargar productos de tienda');
+
+                if (!productos || productos.length === 0) {
+                    setStatus('tiendaStatus', 'Sin productos');
+                    grid.innerHTML = '<div class="col-12"><div class="alert alert-info mb-0">No hay productos activos disponibles.</div></div>';
+                    return;
+                }
+
+                grid.innerHTML = productos.map((p) => `
+                    <div class="col-md-6 col-xl-4">
+                        <article class="card product-card h-100">
+                            <div class="card-body d-flex flex-column">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h3 class="h5 mb-0">${escapeHtml(p.nombre)}</h3>
+                                    <span class="badge text-bg-primary">Stock: ${p.stock}</span>
+                                </div>
+                                <p class="text-muted small mb-3">${escapeHtml(p.descripcion || 'Sin descripcion')}</p>
+                                <div class="mt-auto">
+                                    <div class="fw-bold fs-5 text-primary mb-3">${formatPrice(p.precio)}</div>
+                                    <div class="input-group mb-2">
+                                        <span class="input-group-text">Cantidad</span>
+                                        <input type="number" class="form-control tienda-cantidad" min="1" value="${Math.max(1, Number(document.getElementById('tiendaCantidadDefault').value) || 1)}" data-id="${p.id}">
+                                    </div>
+                                    <button class="btn btn-success w-100 btn-comprar" data-id="${p.id}" data-precio="${p.precio}" data-nombre="${escapeHtml(p.nombre)}" ${p.stock <= 0 ? 'disabled' : ''}>Comprar</button>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+                `).join('');
+
+                setStatus('tiendaStatus', `${productos.length} producto(s) activo(s)`);
+            } catch (error) {
+                setStatus('tiendaStatus', 'Error');
+                grid.innerHTML = `<div class="col-12"><div class="alert alert-danger mb-0">${escapeHtml(error.message)}</div></div>`;
+                showAlert(error.message, 'danger');
+            }
+        }
+
+        async function loadInventario() {
+            setStatus('inventarioStatus', 'Cargando...');
+            try {
+                const productos = await apiFetch('/Productos', { method: 'GET' }, 'cargar inventario');
+                const body = document.getElementById('inventarioBody');
+
+                if (!productos || productos.length === 0) {
+                    setStatus('inventarioStatus', 'Sin registros');
+                    renderEmptyRow('inventarioBody', 6, 'No hay productos activos para inventario.');
+                    return;
+                }
+
+                body.innerHTML = productos.map((p) => `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td>${escapeHtml(p.nombre)}</td>
+                        <td>${escapeHtml(p.descripcion || '')}</td>
+                        <td>${formatPrice(p.precio)}</td>
+                        <td>${p.stock}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1 btn-editar-producto" data-id="${p.id}">Editar</button>
+                            <button class="btn btn-sm btn-outline-danger btn-eliminar-producto" data-id="${p.id}">Eliminar</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                setStatus('inventarioStatus', `${productos.length} registro(s)`);
+            } catch (error) {
+                setStatus('inventarioStatus', 'Error');
+                renderEmptyRow('inventarioBody', 6, error.message, 'danger');
+                showAlert(error.message, 'danger');
+            }
+        }
+
+        async function loadClientes() {
+            setStatus('clientesStatus', 'Cargando...');
+            try {
+                const clientes = await apiFetch('/Clientes', { method: 'GET' }, 'cargar clientes');
+                const body = document.getElementById('clientesBody');
+
+                if (!clientes || clientes.length === 0) {
+                    setStatus('clientesStatus', 'Sin registros');
+                    renderEmptyRow('clientesBody', 4, 'No hay clientes.');
+                    return;
+                }
+
+                body.innerHTML = clientes.map((c) => `
+                    <tr>
+                        <td>${c.id}</td>
+                        <td>${escapeHtml(c.nombre)}</td>
+                        <td>${escapeHtml(c.telefono || '')}</td>
+                        <td>${escapeHtml(c.email || '')}</td>
+                    </tr>
+                `).join('');
+
+                setStatus('clientesStatus', `${clientes.length} cliente(s)`);
+            } catch (error) {
+                setStatus('clientesStatus', 'Error');
+                renderEmptyRow('clientesBody', 4, error.message, 'danger');
+                showAlert(error.message, 'danger');
+            }
+        }
+
+        async function loadProveedores() {
+            setStatus('proveedoresStatus', 'Cargando...');
+            try {
+                const proveedores = await apiFetch('/Proveedores', { method: 'GET' }, 'cargar proveedores');
+                const body = document.getElementById('proveedoresBody');
+
+                if (!proveedores || proveedores.length === 0) {
+                    setStatus('proveedoresStatus', 'Sin registros');
+                    renderEmptyRow('proveedoresBody', 4, 'No hay proveedores.');
+                    return;
+                }
+
+                body.innerHTML = proveedores.map((p) => `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td>${escapeHtml(p.nombre)}</td>
+                        <td>${escapeHtml(p.telefono || '')}</td>
+                        <td>${escapeHtml(p.email || '')}</td>
+                    </tr>
+                `).join('');
+
+                setStatus('proveedoresStatus', `${proveedores.length} proveedor(es)`);
+            } catch (error) {
+                setStatus('proveedoresStatus', 'Error');
+                renderEmptyRow('proveedoresBody', 4, error.message, 'danger');
+                showAlert(error.message, 'danger');
+            }
+        }
+
+        function resetProductoForm() {
+            document.getElementById('productoId').value = '';
+            document.getElementById('productoNombre').value = '';
+            document.getElementById('productoDescripcion').value = '';
+            document.getElementById('productoPrecio').value = '';
+            document.getElementById('productoStock').value = '';
+            document.getElementById('productoGuardarBtn').textContent = 'Guardar';
+        }
+
+        async function refreshProductosViews() {
+            await Promise.all([loadTienda(), loadInventario()]);
+        }
+
+        async function onComprarClick(event) {
+            const button = event.target.closest('.btn-comprar');
+            if (!button) return;
+
+            const productoId = Number(button.dataset.id);
+            const precio = Number(button.dataset.precio);
+            const nombre = button.dataset.nombre || '';
+            const cantidadInput = document.querySelector(`.tienda-cantidad[data-id="${productoId}"]`);
+            const cantidad = Math.max(1, Number(cantidadInput ? cantidadInput.value : 1) || 1);
+            const clienteId = Math.max(1, Number(document.getElementById('tiendaClienteId').value) || 1);
+
+            const venta = {
+                clienteId,
+                fecha: new Date().toISOString(),
+                total: Number((precio * cantidad).toFixed(2)),
+                detalles: [
+                    {
+                        productoId,
+                        cantidad,
+                        precioUnitario: precio
+                    }
+                ]
+            };
+
+            try {
+                await apiFetch('/Ventas', {
+                    method: 'POST',
+                    body: JSON.stringify(venta)
+                }, 'comprar producto');
+
+                showAlert(`Compra enviada para ${nombre}.`, 'success');
+                await refreshProductosViews();
+            } catch (error) {
+                showAlert(error.message, 'danger');
+            }
+        }
+
+        async function onInventarioClick(event) {
+            const editBtn = event.target.closest('.btn-editar-producto');
+            const delBtn = event.target.closest('.btn-eliminar-producto');
+
+            if (editBtn) {
+                const id = Number(editBtn.dataset.id);
+                try {
+                    const p = await apiFetch(`/Productos/${id}`, { method: 'GET' }, 'obtener producto');
+                    document.getElementById('productoId').value = p.id;
+                    document.getElementById('productoNombre').value = p.nombre || '';
+                    document.getElementById('productoDescripcion').value = p.descripcion || '';
+                    document.getElementById('productoPrecio').value = p.precio;
+                    document.getElementById('productoStock').value = p.stock;
+                    document.getElementById('productoGuardarBtn').textContent = 'Actualizar';
+                    showAlert(`Producto #${id} listo para editar.`, 'info');
+                } catch (error) {
+                    showAlert(error.message, 'danger');
+                }
+                return;
+            }
+
+            if (delBtn) {
+                const id = Number(delBtn.dataset.id);
+                const ok = confirm(`Deseas eliminar logicamente el producto #${id}?`);
+                if (!ok) return;
+
+                try {
+                    await apiFetch(`/Productos/${id}`, { method: 'DELETE' }, 'eliminar producto');
+                    showAlert('Producto eliminado logicamente.', 'success');
+                    await refreshProductosViews();
+                } catch (error) {
+                    showAlert(error.message, 'danger');
+                }
+            }
+        }
+
+        async function onSubmitProducto(event) {
+            event.preventDefault();
+
+            const id = document.getElementById('productoId').value;
+            const payload = {
+                id: id ? Number(id) : 0,
+                nombre: document.getElementById('productoNombre').value.trim(),
+                descripcion: document.getElementById('productoDescripcion').value.trim() || null,
+                precio: Number(document.getElementById('productoPrecio').value),
+                stock: Number(document.getElementById('productoStock').value),
+                activo: true
+            };
+
+            try {
+                if (id) {
+                    await apiFetch(`/Productos/${id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(payload)
+                    }, 'actualizar producto');
+                    showAlert('Producto actualizado.', 'success');
+                } else {
+                    delete payload.id;
+                    await apiFetch('/Productos', {
+                        method: 'POST',
+                        body: JSON.stringify(payload)
+                    }, 'crear producto');
+                    showAlert('Producto creado.', 'success');
+                }
+
+                resetProductoForm();
+                await refreshProductosViews();
+            } catch (error) {
+                showAlert(error.message, 'danger');
+            }
+        }
+
+        async function onSubmitCliente(event) {
+            event.preventDefault();
+
+            const payload = {
+                nombre: document.getElementById('clienteNombre').value.trim(),
+                telefono: document.getElementById('clienteTelefono').value.trim() || null,
+                email: document.getElementById('clienteEmail').value.trim() || null
+            };
+
+            try {
+                await apiFetch('/Clientes', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                }, 'crear cliente');
+
+                event.target.reset();
+                showAlert('Cliente agregado.', 'success');
+                await loadClientes();
+            } catch (error) {
+                showAlert(error.message, 'danger');
+            }
+        }
+
+        async function onSubmitProveedor(event) {
+            event.preventDefault();
+
+            const payload = {
+                nombre: document.getElementById('proveedorNombre').value.trim(),
+                telefono: document.getElementById('proveedorTelefono').value.trim() || null,
+                email: document.getElementById('proveedorEmail').value.trim() || null
+            };
+
+            try {
+                await apiFetch('/Proveedores', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                }, 'crear proveedor');
+
+                event.target.reset();
+                showAlert('Proveedor agregado.', 'success');
+                await loadProveedores();
+            } catch (error) {
+                showAlert(error.message, 'danger');
+            }
+        }
+
+        async function refreshAll() {
+            await Promise.all([loadTienda(), loadInventario(), loadClientes(), loadProveedores()]);
+        }
+
+        document.getElementById('tiendaGrid').addEventListener('click', onComprarClick);
+        document.getElementById('inventarioBody').addEventListener('click', onInventarioClick);
+        document.getElementById('productoForm').addEventListener('submit', onSubmitProducto);
+        document.getElementById('clienteForm').addEventListener('submit', onSubmitCliente);
+        document.getElementById('proveedorForm').addEventListener('submit', onSubmitProveedor);
+        document.getElementById('productoCancelarBtn').addEventListener('click', resetProductoForm);
+
+        document.getElementById('btnRefrescarTodo').addEventListener('click', async () => {
+            await refreshAll();
+            showAlert('Vista actualizada.', 'info');
+        });
+
+        document.getElementById('tiendaCantidadDefault').addEventListener('change', () => loadTienda());
+
+        refreshAll();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
