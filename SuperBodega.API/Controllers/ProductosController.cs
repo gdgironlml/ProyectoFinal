@@ -14,7 +14,40 @@ public class ProductosController : ControllerBase
     public ProductosController(BodegaContext db) => _db = db;
 
     [HttpGet]
-    public async Task<IEnumerable<Producto>> Get() => await _db.Productos.Where(p => p.Activo).ToListAsync();
+    public async Task<IActionResult> Get([FromQuery] string? categoria, [FromQuery] int page = 1, [FromQuery] int pageSize = 0)
+    {
+        var query = _db.Productos.Where(p => p.Activo).AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(categoria))
+        {
+            query = query.Where(p => p.Categoria == categoria);
+        }
+
+        if (pageSize > 0)
+        {
+            var totalItems = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+            
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return Ok(new
+            {
+                TotalItems = totalItems,
+                TotalPages = totalPages,
+                CurrentPage = page,
+                PageSize = pageSize,
+                Items = items
+            });
+        }
+
+        return Ok(await query.ToListAsync());
+    }
+
+    [HttpGet("all")]
+    public async Task<IEnumerable<Producto>> GetAll() => await _db.Productos.ToListAsync();
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Producto>> Get(int id)

@@ -55,22 +55,39 @@ TemporaryDependencyNodeTargetIdentifier=net10.0
 /warnaserror+:NU1605,SYSLIB0011
 
 [sourceFiles]
-Consumers/VentaConsumer.cs
+Consumers/
+ PedidoNotificationConsumer.cs
+ VentaConsumer.cs
 Controllers/
+ CarritosController.cs
  ClientesController.cs
  ComprasController.cs
  ProductosController.cs
  ProveedoresController.cs
  VentasController.cs
 Data/BodegaContext.cs
-Messages/VentaRealizadaEvent.cs
+Messages/
+ EstadoCambioRequest.cs
+ PedidoNotificacionEvent.cs
+ VentaRealizadaEvent.cs
 Migrations/
  20260429043948_InitialCreate.cs
  20260429043948_InitialCreate.Designer.cs
  20260429121500_AddProductoActivo.cs
  20260429121500_AddProductoActivo.Designer.cs
+ 20260513172919_AddEstadosComprasVentas.cs
+ 20260513172919_AddEstadosComprasVentas.Designer.cs
+ 20260513174934_AddEstadoVentas.cs
+ 20260513174934_AddEstadoVentas.Designer.cs
+ 20260514170722_AddCategoriaAndCarrito.cs
+ 20260514170722_AddCategoriaAndCarrito.Designer.cs
+ 20260518181726_AddProveedorIdToProductos.cs
+ 20260518181726_AddProveedorIdToProductos.Designer.cs
+ 20260518181833_ReconcileProductoProveedor.cs
+ 20260518181833_ReconcileProductoProveedor.Designer.cs
  BodegaContextModelSnapshot.cs
 Models/
+ Carrito.cs
  Cliente.cs
  Compra.cs
  DetalleCompra.cs
@@ -85,6 +102,9 @@ obj/Debug/net10.0/
 Program.cs
 Services/
  InventarioService.cs
+ Notifications/
+  EmailNotificationService.cs
+  IEmailNotificationService.cs
  ProductoNoEncontradoException.cs
 
 [metadataReferences]

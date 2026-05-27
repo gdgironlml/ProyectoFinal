@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SuperBodega Tienda | E-Commerce Asincrono</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-a: #f7f7fb;
+            --bg-b: #eef4ff;
+            --ink: #192235;
+            --muted: #64748b;
+            --brand: #0b5ed7;
+            --line: #dbe3ef;
+            --accent: #ff7a59;
+        }
+
+        body {
+            min-height: 100vh;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top left, rgba(11, 94, 215, 0.14), transparent 34%),
+                radial-gradient(circle at bottom right, rgba(255, 122, 89, 0.10), transparent 26%),
+                linear-gradient(180deg, var(--bg-a), var(--bg-b));
+        }
+
+        .hero {
+            border-radius: 1.5rem;
+            color: #fff;
+            background: linear-gradient(135deg, #0b5ed7 0%, #0a4ea0 55%, #051d4d 100%);
+            box-shadow: 0 20px 45px rgba(8, 23, 63, 0.24);
+        }
+
+        .panel {
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            border-radius: 1.25rem;
+            background: rgba(255, 255, 255, 0.88);
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+            backdrop-filter: blur(8px);
+        }
+
+        .product-card {
+            border: 1px solid var(--line);
+            border-radius: 1rem;
+            background: #fff;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .product-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+        }
+
+        .small-status {
+            font-size: 0.875rem;
+            color: var(--muted);
+        }
+
+    </style>
+</head>
+<body>
+    <main class="container py-4 py-lg-5">
+        <section class="hero p-4 p-lg-5 mb-4">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+                <div>
+                    <span class="badge text-bg-light text-primary mb-2">SuperBodega E-Commerce</span>
+                    <h1 class="display-6 fw-bold mb-2">Tienda Virtual (Asincrono)</h1>
+                    <p class="mb-0">Compra asincrona: envia la orden y sigue navegando mientras el pedido se procesa en segundo plano.</p>
+                </div>
+                <button id="btnRefrescar" class="btn btn-light btn-lg">Refrescar</button>
+            </div>
+        </section>
+
+        <div id="alertContainer" class="mb-3"></div>
+
+        <section class="panel p-3 p-lg-4">
+            <div class="row g-3 mb-3 align-items-end">
+                <div class="col-sm-6 col-md-6">
+                    <label for="filtroCategoria" class="form-label">Filtrar Categoría</label>
+                    <input id="filtroCategoria" type="text" class="form-control" placeholder="Escribe categoría...">
+                </div>
+                <div class="col-sm-6 col-md-2">
+                    <label for="pageSize" class="form-label">Mostrar</label>
+                    <select id="pageSize" class="form-select">
+                        <option value="6">6</option>
+                        <option value="12" selected>12</option>
+                        <option value="24">24</option>
+                    </select>
+                </div>
+                <div class="col-sm-6 col-md-4 d-flex align-items-end justify-content-between gap-2">
+                    <button id="btnBuscar" class="btn btn-primary w-100 me-2">Buscar</button>
+                    <button id="btnCarrito" type="button" class="btn btn-warning w-100">🛒 Carrito <span id="cartCount" class="badge bg-dark ms-1">0</span></button>
+                </div>
+            </div>
+            <div id="tiendaGrid" class="row g-3"></div>
+            
+            <div class="d-flex justify-content-between align-items-center mt-4">
+                <span id="tiendaStatus" class="small-status">Cargando productos...</span>
+                <nav>
+                    <ul class="pagination mb-0" id="paginationControls"></ul>
+                </nav>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal del Carrito -->
+    <div class="modal fade" id="carritoModal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Tu Carrito de Compras</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body" id="carritoBody">
+            Cargando...
+          </div>
+          <div class="modal-footer d-flex justify-content-between">
+            <h4 class="mb-0">Total: <span id="carritoTotal">$0</span></h4>
+            <div>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                            <button type="button" class="btn btn-success" id="btnProcesarVentaAsync">Pagar asincrono</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+        <!-- Modal del Cliente -->
+        <div class="modal fade" id="clienteModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Identifica tu compra</h5>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small-status mb-3">Ingresa tus datos. Si el correo ya existe, se asociará tu compra a ese cliente.</p>
+                        <form id="clienteSesionForm" class="row g-3">
+                            <div class="col-12">
+                                <label for="clienteSesionNombre" class="form-label">Nombre completo</label>
+                                <input id="clienteSesionNombre" type="text" class="form-control" required>
+                            </div>
+                            <div class="col-12">
+                                <label for="clienteSesionEmail" class="form-label">Correo electrónico</label>
+                                <input id="clienteSesionEmail" type="email" class="form-control" required>
+                            </div>
+                            <div class="col-12 d-none" id="clienteTelefonoGroup">
+                                <label for="clienteSesionTelefono" class="form-label">Teléfono</label>
+                                <input id="clienteSesionTelefono" type="tel" class="form-control" placeholder="Solo para clientes nuevos">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" form="clienteSesionForm" class="btn btn-primary" id="btnGuardarClienteSesion">Continuar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

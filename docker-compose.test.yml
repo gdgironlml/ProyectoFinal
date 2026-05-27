@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  api:
+    environment:
+      - Email__Smtp__Host=mailhog
+      - Email__Smtp__Port=1025
+      - Email__Smtp__FromAddress=no-reply@superbodega.local
+      - Email__Smtp__FromName=Super Bodega
+      - Email__Smtp__EnableSsl=false
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - bodega-network
+    restart: unless-stopped

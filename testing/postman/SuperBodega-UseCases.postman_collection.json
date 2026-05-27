@@ -1,0 +1,45 @@
+{
+  "info": {
+    "name": "SuperBodega Use Cases",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "List Productos",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/Productos"
+      }
+    },
+    {
+      "name": "Create Compra (sync)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ClienteId\": 1,\n  \"ProveedorId\": 1,\n  \"Detalles\": [ { \"ProductoId\": 1, \"Cantidad\": 2, \"Precio\": 100.0, \"PrecioCompra\": 80.0 } ]\n}"
+        },
+        "url": "{{base_url}}/Compras"
+      }
+    },
+    {
+      "name": "Create Venta (async)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ClienteId\": 1,\n  \"Detalles\": [ { \"ProductoId\": 1, \"Cantidad\": 1, \"Precio\": 150.0 } ]\n}"
+        },
+        "url": "{{base_url}}/Ventas"
+      }
+    }
+  ]
+}

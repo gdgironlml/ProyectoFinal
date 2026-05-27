@@ -22,6 +22,53 @@ namespace SuperBodega.API.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("SuperBodega.API.Models.Carrito", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClienteId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId");
+
+                    b.ToTable("Carritos");
+                });
+
+            modelBuilder.Entity("SuperBodega.API.Models.CarritoItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Cantidad")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CarritoId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ProductoId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CarritoId");
+
+                    b.HasIndex("ProductoId");
+
+                    b.ToTable("CarritoItems");
+                });
+
             modelBuilder.Entity("SuperBodega.API.Models.Cliente", b =>
                 {
                     b.Property<int>("Id")
@@ -52,6 +99,10 @@ namespace SuperBodega.API.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("Fecha")
                         .HasColumnType("datetime2");
@@ -138,6 +189,9 @@ namespace SuperBodega.API.Migrations
                     b.Property<bool>("Activo")
                         .HasColumnType("bit");
 
+                    b.Property<string>("Categoria")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Descripcion")
                         .HasColumnType("nvarchar(max)");
 
@@ -148,10 +202,18 @@ namespace SuperBodega.API.Migrations
                     b.Property<decimal>("Precio")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("PrecioCompra")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("ProveedorId")
+                        .HasColumnType("int");
+
                     b.Property<int>("Stock")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ProveedorId");
 
                     b.ToTable("Productos");
                 });
@@ -190,6 +252,10 @@ namespace SuperBodega.API.Migrations
                     b.Property<int>("ClienteId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("Fecha")
                         .HasColumnType("datetime2");
 
@@ -201,6 +267,34 @@ namespace SuperBodega.API.Migrations
                     b.HasIndex("ClienteId");
 
                     b.ToTable("Ventas");
+                });
+
+            modelBuilder.Entity("SuperBodega.API.Models.Carrito", b =>
+                {
+                    b.HasOne("SuperBodega.API.Models.Cliente", "Cliente")
+                        .WithMany()
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Cliente");
+                });
+
+            modelBuilder.Entity("SuperBodega.API.Models.CarritoItem", b =>
+                {
+                    b.HasOne("SuperBodega.API.Models.Carrito", null)
+                        .WithMany("Items")
+                        .HasForeignKey("CarritoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SuperBodega.API.Models.Producto", "Producto")
+                        .WithMany()
+                        .HasForeignKey("ProductoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Producto");
                 });
 
             modelBuilder.Entity("SuperBodega.API.Models.Compra", b =>
@@ -252,6 +346,16 @@ namespace SuperBodega.API.Migrations
                     b.Navigation("Venta");
                 });
 
+            modelBuilder.Entity("SuperBodega.API.Models.Producto", b =>
+                {
+                    b.HasOne("SuperBodega.API.Models.Proveedor", "Proveedor")
+                        .WithMany()
+                        .HasForeignKey("ProveedorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Proveedor");
+                });
+
             modelBuilder.Entity("SuperBodega.API.Models.Venta", b =>
                 {
                     b.HasOne("SuperBodega.API.Models.Cliente", "Cliente")
@@ -261,6 +365,11 @@ namespace SuperBodega.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Cliente");
+                });
+
+            modelBuilder.Entity("SuperBodega.API.Models.Carrito", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("SuperBodega.API.Models.Compra", b =>

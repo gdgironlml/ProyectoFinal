@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace SuperBodega.API.Models;
 
 public class DetalleVenta
@@ -8,6 +10,7 @@ public class DetalleVenta
     public int Cantidad { get; set; }
     public decimal PrecioUnitario { get; set; }
 
+    [JsonIgnore]
     public Venta? Venta { get; set; }
     public Producto? Producto { get; set; }
 }

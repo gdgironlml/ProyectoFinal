@@ -1,5 +1,7 @@
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using SuperBodega.API.Data;
+using SuperBodega.API.Messages;
 using SuperBodega.API.Models;
 
 namespace SuperBodega.API.Services;
@@ -14,28 +16,73 @@ public class StockInsuficienteException : Exception
 public class InventarioService
 {
     private readonly BodegaContext _db;
+    private readonly IPublishEndpoint _publishEndpoint;
+    private readonly ILogger<InventarioService> _logger;
+    private const string EstadoRegistrada = "Registrada";
+    private const string EstadoDespachada = "Despachada";
+    private const string EstadoEntregada = "Entregada";
+    private const string EstadoAnulada = "Anulada";
 
-    public InventarioService(BodegaContext db)
+    public InventarioService(BodegaContext db, IPublishEndpoint publishEndpoint, ILogger<InventarioService> logger)
     {
         _db = db;
+        _publishEndpoint = publishEndpoint;
+        _logger = logger;
     }
-
+    // Nota: Las compras agregan stock y las ventas reducen stock.
+    // Esta es la lógica comercial estándar.
     public async Task<Compra> RegistrarCompraAsync(Compra compra)
     {
-        // Add compra and update stock
         using var tx = await _db.Database.BeginTransactionAsync();
         try
         {
-            _db.Compras.Add(compra);
-            foreach (var det in compra.Detalles)
+            compra.Estado = EstadoRegistrada;
+            // Primero crear productos nuevos que vengan embedidos en los detalles
+            var nuevos = compra.Detalles.Where(d => d.ProductoId == 0 && d.Producto != null).ToList();
+            foreach (var detNew in nuevos)
             {
-                var producto = await _db.Productos.FirstOrDefaultAsync(p => p.Id == det.ProductoId);
-                if (producto == null)
-                    throw new Exception($"Producto {det.ProductoId} no encontrado");
-
-                producto.Stock += det.Cantidad;
+                var p = new Producto
+                {
+                    Nombre = detNew.Producto!.Nombre,
+                    Descripcion = detNew.Producto.Descripcion,
+                    PrecioCompra = detNew.PrecioUnitario,
+                    Precio = detNew.Producto.Precio,
+                    ProveedorId = compra.ProveedorId,
+                    Stock = 0,
+                    Activo = true
+                };
+                _db.Productos.Add(p);
             }
 
+            await _db.SaveChangesAsync();
+
+            // Ahora asegurar que todos los detalles refieran a productos existentes
+            foreach (var det in compra.Detalles)
+            {
+                Producto? producto = null;
+                if (det.ProductoId != 0)
+                {
+                    producto = await _db.Productos.FirstOrDefaultAsync(p => p.Id == det.ProductoId);
+                }
+                else if (det.Producto != null)
+                {
+                    // ya fue creado y tiene Id asignado por SaveChanges
+                    producto = await _db.Productos.FirstOrDefaultAsync(p => p.Nombre == det.Producto.Nombre && p.PrecioCompra == det.PrecioUnitario);
+                }
+
+                if (producto == null)
+                    throw new ProductoNoEncontradoException($"Producto para detalle no encontrado o no proporcionado");
+
+                if (producto.ProveedorId != compra.ProveedorId)
+                    throw new Exception($"El producto {producto.Nombre} no pertenece al proveedor seleccionado");
+
+                // Las compras aumentan stock
+                producto.Stock += det.Cantidad;
+                det.ProductoId = producto.Id;
+                det.Producto = null;
+            }
+
+            _db.Compras.Add(compra);
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
             return compra;
@@ -52,26 +99,374 @@ public class InventarioService
         using var tx = await _db.Database.BeginTransactionAsync();
         try
         {
-            // validate stock
+            venta.Estado = EstadoRegistrada;
+            // Las ventas agregan stock y permiten crear productos nuevos asociados a la venta
+            // Primero crear productos nuevos que vengan embedidos en los detalles
+            var nuevos = venta.Detalles.Where(d => d.ProductoId == 0 && d.Producto != null).ToList();
+            foreach (var detNew in nuevos)
+            {
+                var p = new Producto
+                {
+                    Nombre = detNew.Producto!.Nombre,
+                    Descripcion = detNew.Producto.Descripcion,
+                    PrecioCompra = detNew.PrecioUnitario,
+                    Precio = detNew.Producto.Precio,
+                    Stock = 0,
+                    Activo = true
+                };
+                _db.Productos.Add(p);
+            }
+
+            await _db.SaveChangesAsync();
+
+            // Ahora asegurar que todos los detalles refieran a productos existentes
             foreach (var det in venta.Detalles)
             {
-                var producto = await _db.Productos.FirstOrDefaultAsync(p => p.Id == det.ProductoId);
+                Producto? producto = null;
+                if (det.ProductoId != 0)
+                {
+                    producto = await _db.Productos.FirstOrDefaultAsync(p => p.Id == det.ProductoId);
+                }
+                else if (det.Producto != null)
+                {
+                    // ya fue creado y tiene Id asignado por SaveChanges
+                    producto = await _db.Productos.FirstOrDefaultAsync(p => p.Nombre == det.Producto.Nombre && p.PrecioCompra == det.PrecioUnitario);
+                }
+
                 if (producto == null)
-                    throw new ProductoNoEncontradoException($"Producto {det.ProductoId} no encontrado");
+                    throw new ProductoNoEncontradoException($"Producto para detalle no encontrado o no proporcionado");
+
                 if (producto.Stock < det.Cantidad)
                     throw new StockInsuficienteException($"Stock insuficiente para el producto {producto.Nombre}");
+
+                // Las ventas disminuyen stock
                 producto.Stock -= det.Cantidad;
+                det.ProductoId = producto.Id;
+                det.Producto = null;
             }
 
             _db.Ventas.Add(venta);
             await _db.SaveChangesAsync();
             await tx.CommitAsync();
+
+            await PublicarNotificacionPedidoAsync(venta.Id, EstadoRegistrada);
             return venta;
         }
         catch
         {
             await tx.RollbackAsync();
             throw;
+        }
+    }
+
+    public async Task<Compra> UpdateCompraAsync(int id, Compra compra)
+    {
+        using var tx = await _db.Database.BeginTransactionAsync();
+        try
+        {
+            var existing = await _db.Compras.Include(c => c.Detalles).FirstOrDefaultAsync(c => c.Id == id);
+            if (existing == null) throw new Exception("Compra no encontrada");
+            var ajustaStock = !string.Equals(existing.Estado, EstadoAnulada, StringComparison.OrdinalIgnoreCase);
+
+            // map productId -> cantidad
+            var oldMap = existing.Detalles.GroupBy(d => d.ProductoId).ToDictionary(g => g.Key, g => g.Sum(d => d.Cantidad));
+            var newMap = compra.Detalles.GroupBy(d => d.ProductoId).ToDictionary(g => g.Key, g => g.Sum(d => d.Cantidad));
+
+            var productIds = oldMap.Keys.Concat(newMap.Keys).Distinct();
+            foreach (var pid in productIds)
+            {
+                var oldQty = oldMap.ContainsKey(pid) ? oldMap[pid] : 0;
+                var newQty = newMap.ContainsKey(pid) ? newMap[pid] : 0;
+                var producto = await _db.Productos.FirstOrDefaultAsync(p => p.Id == pid);
+                if (producto == null) throw new ProductoNoEncontradoException($"Producto {pid} no encontrado");
+
+                if (ajustaStock)
+                {
+                    // compras aumentan stock: aplicar delta inverso
+                    producto.Stock -= (oldQty - newQty);
+                }
+            }
+
+            // actualizar entidad y detalles (simple approach: remove old detalles, add new)
+            _db.DetallesCompra.RemoveRange(existing.Detalles);
+            existing.Detalles = compra.Detalles;
+            foreach (var det in existing.Detalles)
+            {
+                det.Producto = null;
+            }
+            existing.Fecha = compra.Fecha;
+            existing.ProveedorId = compra.ProveedorId;
+            existing.Total = compra.Total;
+
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+            return existing;
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task DeleteCompraAsync(int id)
+    {
+        using var tx = await _db.Database.BeginTransactionAsync();
+        try
+        {
+            var existing = await _db.Compras.Include(c => c.Detalles).FirstOrDefaultAsync(c => c.Id == id);
+            if (existing == null) throw new Exception("Compra no encontrada");
+
+            // Solo revertimos stock si la compra sigue vigente.
+            if (!string.Equals(existing.Estado, EstadoAnulada, StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var d in existing.Detalles)
+                {
+                    var producto = await _db.Productos.FirstOrDefaultAsync(p => p.Id == d.ProductoId);
+                    if (producto == null) continue;
+                    producto.Stock -= d.Cantidad;
+                }
+            }
+
+            _db.DetallesCompra.RemoveRange(existing.Detalles);
+            _db.Compras.Remove(existing);
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<Venta> UpdateVentaAsync(int id, Venta venta)
+    {
+        using var tx = await _db.Database.BeginTransactionAsync();
+        try
+        {
+            var existing = await _db.Ventas.Include(c => c.Detalles).FirstOrDefaultAsync(c => c.Id == id);
+            if (existing == null) throw new Exception("Venta no encontrada");
+            var ajustaStock = !string.Equals(existing.Estado, EstadoAnulada, StringComparison.OrdinalIgnoreCase);
+
+            var oldMap = existing.Detalles.GroupBy(d => d.ProductoId).ToDictionary(g => g.Key, g => g.Sum(d => d.Cantidad));
+            var newMap = venta.Detalles.GroupBy(d => d.ProductoId).ToDictionary(g => g.Key, g => g.Sum(d => d.Cantidad));
+
+            var productIds = oldMap.Keys.Concat(newMap.Keys).Distinct();
+            foreach (var pid in productIds)
+            {
+                var oldQty = oldMap.ContainsKey(pid) ? oldMap[pid] : 0;
+                var newQty = newMap.ContainsKey(pid) ? newMap[pid] : 0;
+                var producto = await _db.Productos.FirstOrDefaultAsync(p => p.Id == pid);
+                if (producto == null) throw new ProductoNoEncontradoException($"Producto {pid} no encontrado");
+
+                if (ajustaStock)
+                {
+                    // ventas disminuyen stock: validar y aplicar delta
+                    var deltaNegativo = oldQty - newQty;
+                    if (producto.Stock < deltaNegativo)
+                        throw new StockInsuficienteException($"Stock insuficiente para el producto {producto.Nombre}");
+                    producto.Stock -= deltaNegativo;
+                }
+            }
+
+            _db.DetallesVenta.RemoveRange(existing.Detalles);
+            existing.Detalles = venta.Detalles;
+            foreach (var det in existing.Detalles)
+            {
+                det.Producto = null;
+            }
+            existing.Fecha = venta.Fecha;
+            existing.ClienteId = venta.ClienteId;
+            existing.Total = venta.Total;
+
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+            return existing;
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task DeleteVentaAsync(int id)
+    {
+        using var tx = await _db.Database.BeginTransactionAsync();
+        try
+        {
+            var existing = await _db.Ventas.Include(c => c.Detalles).FirstOrDefaultAsync(c => c.Id == id);
+            if (existing == null) throw new Exception("Venta no encontrada");
+
+            // Solo revertimos stock si la venta sigue vigente.
+            if (!string.Equals(existing.Estado, EstadoAnulada, StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var d in existing.Detalles)
+                {
+                    var producto = await _db.Productos.FirstOrDefaultAsync(p => p.Id == d.ProductoId);
+                    if (producto == null) continue;
+                    producto.Stock += d.Cantidad;
+                }
+            }
+
+            _db.DetallesVenta.RemoveRange(existing.Detalles);
+            _db.Ventas.Remove(existing);
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<Compra> CambiarEstadoCompraAsync(int id, string estado)
+    {
+        using var tx = await _db.Database.BeginTransactionAsync();
+        try
+        {
+            estado = NormalizarEstado(estado);
+            var compra = await _db.Compras.Include(c => c.Detalles).FirstOrDefaultAsync(c => c.Id == id);
+            if (compra == null) throw new Exception("Compra no encontrada");
+
+            if (compra.Estado == estado) return compra;
+
+            if (estado == EstadoAnulada && compra.Estado != EstadoAnulada)
+            {
+                foreach (var d in compra.Detalles)
+                {
+                    var producto = await _db.Productos.FirstOrDefaultAsync(p => p.Id == d.ProductoId);
+                    if (producto == null) continue;
+                    producto.Stock -= d.Cantidad;
+                }
+            }
+            else if (estado == EstadoRegistrada && compra.Estado == EstadoAnulada)
+            {
+                foreach (var d in compra.Detalles)
+                {
+                    var producto = await _db.Productos.FirstOrDefaultAsync(p => p.Id == d.ProductoId);
+                    if (producto == null) continue;
+                    producto.Stock += d.Cantidad;
+                }
+            }
+
+            compra.Estado = estado;
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+            return compra;
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    public async Task<Venta> CambiarEstadoVentaAsync(int id, string estado)
+    {
+        using var tx = await _db.Database.BeginTransactionAsync();
+        try
+        {
+            estado = NormalizarEstado(estado);
+            var venta = await _db.Ventas.Include(v => v.Detalles).FirstOrDefaultAsync(v => v.Id == id);
+            if (venta == null) throw new Exception("Venta no encontrada");
+
+            if (venta.Estado == estado) return venta;
+
+            if (estado == EstadoAnulada && venta.Estado != EstadoAnulada)
+            {
+                foreach (var d in venta.Detalles)
+                {
+                    var producto = await _db.Productos.FirstOrDefaultAsync(p => p.Id == d.ProductoId);
+                    if (producto == null) continue;
+                    producto.Stock += d.Cantidad;
+                }
+            }
+            else if (estado == EstadoRegistrada && venta.Estado == EstadoAnulada)
+            {
+                foreach (var d in venta.Detalles)
+                {
+                    var producto = await _db.Productos.FirstOrDefaultAsync(p => p.Id == d.ProductoId);
+                    if (producto == null) continue;
+                    if (producto.Stock < d.Cantidad)
+                        throw new StockInsuficienteException($"Stock insuficiente para restaurar la venta del producto {producto.Nombre}");
+                    producto.Stock -= d.Cantidad;
+                }
+            }
+
+            venta.Estado = estado;
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            if (EsEstadoNotificable(estado))
+            {
+                await PublicarNotificacionPedidoAsync(venta.Id, estado);
+            }
+
+            return venta;
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
+    }
+
+    private static string NormalizarEstado(string estado)
+    {
+        if (string.Equals(estado, EstadoAnulada, StringComparison.OrdinalIgnoreCase)) return EstadoAnulada;
+        if (string.Equals(estado, EstadoDespachada, StringComparison.OrdinalIgnoreCase)) return EstadoDespachada;
+        if (string.Equals(estado, EstadoEntregada, StringComparison.OrdinalIgnoreCase)) return EstadoEntregada;
+        if (string.Equals(estado, "Recibido", StringComparison.OrdinalIgnoreCase)) return EstadoRegistrada;
+        if (string.Equals(estado, "Pedido recibido", StringComparison.OrdinalIgnoreCase)) return EstadoRegistrada;
+        if (string.Equals(estado, "Pedido despachado", StringComparison.OrdinalIgnoreCase)) return EstadoDespachada;
+        if (string.Equals(estado, "Pedido entregado", StringComparison.OrdinalIgnoreCase)) return EstadoEntregada;
+        return EstadoRegistrada;
+    }
+
+    private static bool EsEstadoNotificable(string estado)
+    {
+        return string.Equals(estado, EstadoRegistrada, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(estado, EstadoDespachada, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(estado, EstadoEntregada, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task PublicarNotificacionPedidoAsync(int ventaId, string estado)
+    {
+        const int maxAttempts = 3;
+        Exception? lastEx = null;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                _logger.LogInformation("Publicando evento PedidoNotificacionEvent para venta {VentaId} estado {Estado} (intento {Attempt}/{Max})", ventaId, estado, attempt, maxAttempts);
+                await _publishEndpoint.Publish(new PedidoNotificacionEvent
+                {
+                    VentaId = ventaId,
+                    Estado = estado,
+                    FechaEvento = DateTime.UtcNow
+                });
+                _logger.LogInformation("Evento PedidoNotificacionEvent publicado para venta {VentaId} estado {Estado}", ventaId, estado);
+                lastEx = null;
+                break;
+            }
+            catch (Exception ex)
+            {
+                lastEx = ex;
+                _logger.LogWarning(ex, "Fallo al publicar notificacion de pedido (intento {Attempt}/{Max}) venta {VentaId} estado {Estado}.", attempt, maxAttempts, ventaId, estado);
+                if (attempt < maxAttempts)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+                }
+            }
+        }
+
+        if (lastEx != null)
+        {
+            _logger.LogError(lastEx, "No se pudo publicar la notificación del pedido {VentaId} en estado {Estado} tras {Max} intentos.", ventaId, estado, maxAttempts);
         }
     }
 }

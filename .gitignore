@@ -1,0 +1,10 @@
+bin/
+obj/
+.env
+*.user
+*.bak
+reports/*.json
+reports/*.md
+!reports/resumen-pruebas.md
+SuperBodega.API/appsettings.Development.local.json
+SuperBodega.API/appsettings.Local.json

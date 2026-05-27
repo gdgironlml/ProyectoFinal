@@ -16,6 +16,8 @@ public class BodegaContext : DbContext
     public DbSet<DetalleCompra> DetallesCompra { get; set; } = null!;
     public DbSet<Venta> Ventas { get; set; } = null!;
     public DbSet<DetalleVenta> DetallesVenta { get; set; } = null!;
+    public DbSet<Carrito> Carritos { get; set; } = null!;
+    public DbSet<CarritoItem> CarritoItems { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,6 +27,12 @@ public class BodegaContext : DbContext
         modelBuilder.Entity<Producto>()
             .Property(p => p.Precio)
             .HasColumnType("decimal(18,2)");
+
+        modelBuilder.Entity<Producto>()
+            .HasOne(p => p.Proveedor)
+            .WithMany()
+            .HasForeignKey(p => p.ProveedorId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // Configurar precisión decimal para Venta
         modelBuilder.Entity<Venta>()

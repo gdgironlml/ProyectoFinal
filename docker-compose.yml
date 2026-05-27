@@ -8,9 +8,18 @@ services:
       - "1433:1433"
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=ProyectoUMG2026!
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
     volumes:
       - sql_data:/var/opt/mssql
+    networks:
+      - bodega-network
+    healthcheck:
+      # He añadido el -C para TrustServerCertificate y un start_period
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P ${MSSQL_SA_PASSWORD} -C -Q 'SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -19,11 +28,64 @@ services:
       - "5672:5672"   # Puerto de mensajes
       - "15672:15672" # Interfaz Web de administración
     environment:
-      - RABBITMQ_DEFAULT_USER=user
-      - RABBITMQ_DEFAULT_PASS=password
+      - RABBITMQ_DEFAULT_USER=${RabbitMQ__Username}
+      - RABBITMQ_DEFAULT_PASS=${RabbitMQ__Password}
     volumes:
       - rabbit_data:/var/lib/rabbitmq
+    networks:
+      - bodega-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: SuperBodega.API/Dockerfile
+    container_name: superbodega_api
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection}
+      - RabbitMQ__Host=${RabbitMQ__Host}
+      - RabbitMQ__Username=${RabbitMQ__Username}
+      - RabbitMQ__Password=${RabbitMQ__Password}
+      - Email__Smtp__Host=${Email__Smtp__Host}
+      - Email__Smtp__Port=${Email__Smtp__Port}
+      - Email__Smtp__Username=${Email__Smtp__Username}
+      - Email__Smtp__Password=${Email__Smtp__Password}
+      - Email__Smtp__FromAddress=${Email__Smtp__FromAddress}
+      - Email__Smtp__FromName=${Email__Smtp__FromName}
+      - Email__Smtp__EnableSsl=${Email__Smtp__EnableSsl}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bodega-network
+    restart: unless-stopped
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: superbodega_ngrok
+    depends_on:
+      - api
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTH_TOKEN}
+    command: http --log=stdout --domain=${NGROK_URL} http://api:8080
+    networks:
+      - bodega-network
+    restart: unless-stopped
 
 volumes:
   sql_data:
   rabbit_data:
+
+networks:
+  bodega-network:
+    driver: bridge

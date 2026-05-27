@@ -8,6 +8,7 @@ public class Compra
     public DateTime Fecha { get; set; } = DateTime.UtcNow;
     public int ProveedorId { get; set; }
     public decimal Total { get; set; }
+    public string Estado { get; set; } = string.Empty;
 
     public Proveedor? Proveedor { get; set; }
     public List<DetalleCompra> Detalles { get; set; } = new();
