@@ -16,9 +16,9 @@ RUN dotnet publish "SuperBodega.API.csproj" -c Release -o /app/publish /p:UseApp
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
+ENV ASPNETCORE_URLS=http://+:8080
 COPY --from=publish /app/publish .
 
-EXPOSE 80
-EXPOSE 443
+EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "SuperBodega.API.dll"]

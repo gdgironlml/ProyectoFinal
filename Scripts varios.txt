@@ -1,1 +1,6 @@
 .\scripts\run_tests.ps1
+
+.\scripts\run_postman_async.ps1
+.\scripts\run_postman_sync.ps1
+.\scripts\run_k6_async.ps1
+.\scripts\run_k6_sync.ps1

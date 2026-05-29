@@ -2,17 +2,16 @@
 Set-StrictMode -Version Latest
 
 $pwdPath = (Get-Location).Path
-New-Item -ItemType Directory -Force -Path "$pwdPath\reports" | Out-Null
+$postmanSync = Join-Path $pwdPath 'scripts\run_postman_sync.ps1'
+$postmanAsync = Join-Path $pwdPath 'scripts\run_postman_async.ps1'
+$k6Sync = Join-Path $pwdPath 'scripts\run_k6_sync.ps1'
+$k6Async = Join-Path $pwdPath 'scripts\run_k6_async.ps1'
 
-$composeArgs = @('-f', 'docker-compose.yml', '-f', 'docker-compose.test.yml')
-
-Write-Host 'Ejecutando Newman (docker)...'
-docker compose @composeArgs up -d mailhog api sqlserver rabbitmq | Out-Null
-docker run --rm -v "$pwdPath\testing\postman:/etc/newman" -v "$pwdPath\reports:/etc/newman/reports" -w /etc/newman postman/newman run SuperBodega-UseCases.postman_collection.json -e SuperBodega.postman_environment.json --reporters cli,json --reporter-json-export reports/newman-report.json
-
-Write-Host 'Ejecutando k6 (docker)...'
-$ngrokUrl = (Get-Content "$pwdPath\.env" | Where-Object { $_ -match "^NGROK_URL=(.*)" }) -replace "^NGROK_URL=(.*)", '$1'
-docker run --rm -v "$pwdPath\testing\k6:/scripts" -v "$pwdPath\reports:/scripts/reports" -w /scripts -e BASE_URL="https://$ngrokUrl/api" loadimpact/k6 run sync-vs-async-load.js --summary-export reports/k6-summary.json
+# Ejecutar todos los runners (sync primero, async después)
+& $postmanSync
+& $postmanAsync
+& $k6Sync
+& $k6Async
 
 function Format-Percent([int]$Part, [int]$Total) {
 	if ($Total -le 0) { return '0%' }
@@ -31,8 +30,10 @@ function Get-MetricCount($metrics, [string]$name) {
 	return [int]$metric.count
 }
 
-$newman = Get-Content "$pwdPath\reports\newman-report.json" -Raw | ConvertFrom-Json
-$k6 = Get-Content "$pwdPath\reports\k6-summary.json" -Raw | ConvertFrom-Json
+$newman = Get-Content "$pwdPath\reports\newman-sync-report.json" -Raw | ConvertFrom-Json
+$newmanAsync = Get-Content "$pwdPath\reports\newman-async-report.json" -Raw | ConvertFrom-Json
+$k6 = Get-Content "$pwdPath\reports\k6-sync-summary.json" -Raw | ConvertFrom-Json
+$k6Async = Get-Content "$pwdPath\reports\k6-async-summary.json" -Raw | ConvertFrom-Json
 
 $newmanRequests = [int]$newman.run.stats.requests.total
 $newmanFailedRequests = [int]$newman.run.stats.requests.failed
@@ -51,7 +52,7 @@ $newmanFailedResponses = @(
 $newmanFailedResponseCount = $newmanFailedResponses.Count
 $newmanObservedFailures = $newmanFailedRequests + $newmanFailedTests + $newmanFailedResponseCount
 $newmanCompraExecutions = @($newman.run.executions | Where-Object { $_.item -and $_.item.name -like '*Compra*' })
-$newmanVentaExecutions = @($newman.run.executions | Where-Object { $_.item -and $_.item.name -like '*Venta*' })
+$newmanVentaExecutions = @($newmanAsync.run.executions | Where-Object { $_.item -and $_.item.name -like '*Checkout*' -or $_.item.name -like '*Venta*' })
 $newmanCompraOk = @($newmanCompraExecutions | Where-Object { $_.response -and $_.response.code -ge 200 -and $_.response.code -lt 300 }).Count
 $newmanCompraError = $newmanCompraExecutions.Count - $newmanCompraOk
 $newmanVentaOk = @($newmanVentaExecutions | Where-Object { $_.response -and $_.response.code -ge 200 -and $_.response.code -lt 300 }).Count
@@ -67,9 +68,9 @@ $k6AvgMs = [math]::Round([double]$k6.metrics.http_req_duration.avg, 2)
 $k6SyncTotal = Get-MetricCount $k6.metrics 'sync_requests_total'
 $k6SyncOk = Get-MetricCount $k6.metrics 'sync_ok_total'
 $k6SyncError = Get-MetricCount $k6.metrics 'sync_error_total'
-$k6AsyncTotal = Get-MetricCount $k6.metrics 'async_requests_total'
-$k6AsyncOk = Get-MetricCount $k6.metrics 'async_ok_total'
-$k6AsyncError = Get-MetricCount $k6.metrics 'async_error_total'
+$k6AsyncTotal = Get-MetricCount $k6Async.metrics 'async_requests_total'
+$k6AsyncOk = Get-MetricCount $k6Async.metrics 'async_ok_total'
+$k6AsyncError = Get-MetricCount $k6Async.metrics 'async_error_total'
 
 $summary = @"
 # Resumen de pruebas

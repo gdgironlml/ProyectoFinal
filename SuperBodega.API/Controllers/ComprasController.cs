@@ -24,6 +24,7 @@ public class ComprasController : ControllerBase
     public async Task<IEnumerable<Compra>> Get() => await _db.Compras
         .Include(c => c.Proveedor)
         .Include(c => c.Detalles)
+            .ThenInclude(d => d.Producto)
         .ToListAsync();
 
     [HttpGet("{id}")]
@@ -32,6 +33,7 @@ public class ComprasController : ControllerBase
         var e = await _db.Compras
             .Include(c => c.Proveedor)
             .Include(c => c.Detalles)
+                .ThenInclude(d => d.Producto)
             .FirstOrDefaultAsync(c => c.Id == id);
         if (e == null) return NotFound();
         return e;

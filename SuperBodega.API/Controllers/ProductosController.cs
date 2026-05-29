@@ -11,12 +11,20 @@ public class ProductosController : ControllerBase
 {
     private readonly BodegaContext _db;
 
+
     public ProductosController(BodegaContext db) => _db = db;
+
+    private IQueryable<Producto> QueryProductos()
+    {
+        return _db.Productos
+            .AsNoTracking()
+            .Include(p => p.Proveedor);
+    }
 
     [HttpGet]
     public async Task<IActionResult> Get([FromQuery] string? categoria, [FromQuery] int page = 1, [FromQuery] int pageSize = 0)
     {
-        var query = _db.Productos.Where(p => p.Activo).AsQueryable();
+        var query = QueryProductos().Where(p => p.Activo).AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(categoria))
         {
@@ -47,12 +55,12 @@ public class ProductosController : ControllerBase
     }
 
     [HttpGet("all")]
-    public async Task<IEnumerable<Producto>> GetAll() => await _db.Productos.ToListAsync();
+    public async Task<IEnumerable<Producto>> GetAll() => await QueryProductos().ToListAsync();
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Producto>> Get(int id)
     {
-        var p = await _db.Productos.FindAsync(id);
+        var p = await QueryProductos().FirstOrDefaultAsync(producto => producto.Id == id);
         if (p == null) return NotFound();
         return p;
     }
@@ -62,7 +70,9 @@ public class ProductosController : ControllerBase
     {
         _db.Productos.Add(producto);
         await _db.SaveChangesAsync();
-        return CreatedAtAction(nameof(Get), new { id = producto.Id }, producto);
+
+        var created = await QueryProductos().FirstAsync(p => p.Id == producto.Id);
+        return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
     }
 
     [HttpPut("{id}")]
@@ -71,7 +81,9 @@ public class ProductosController : ControllerBase
         if (id != producto.Id) return BadRequest();
         _db.Entry(producto).State = EntityState.Modified;
         await _db.SaveChangesAsync();
-        return NoContent();
+
+        var updated = await QueryProductos().FirstAsync(p => p.Id == id);
+        return Ok(updated);
     }
 
     [HttpDelete("{id}")]

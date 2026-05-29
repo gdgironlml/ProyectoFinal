@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Mail;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using SuperBodega.API.Data;
 using SuperBodega.API.Models;
 
@@ -82,7 +83,6 @@ public class EmailNotificationService : IEmailNotificationService
             smtp.Credentials = new NetworkCredential(username, password);
         }
 
-        // Send with simple retry/backoff to handle transient SMTP/network issues.
         const int maxAttempts = 3;
         var attempt = 0;
         Exception? lastEx = null;
@@ -150,8 +150,8 @@ public class EmailNotificationService : IEmailNotificationService
             estadoNormalizado == "anulada" ? 
                 $"Lamentamos informarte que tu pedido #{venta.Id} ha sido anulado." : 
                 $"Tu pedido #{venta.Id} cambió a estado: {estadoVisible}.",
-            $"Fecha: {venta.Fecha:yyyy-MM-dd HH:mm}",
-            $"Total: {venta.Total:C}",
+            $"Fecha: {venta.Fecha:yyyy-MM-dd}",
+            $"Total: {FormatearQuetzales(venta.Total)}",
             string.Empty,
             "Detalle del pedido:"
         };
@@ -159,7 +159,7 @@ public class EmailNotificationService : IEmailNotificationService
         foreach (var detalle in venta.Detalles)
         {
             var nombreProducto = detalle.Producto?.Nombre ?? $"Producto #{detalle.ProductoId}";
-            lineas.Add($"- {nombreProducto} x {detalle.Cantidad} @ {detalle.PrecioUnitario:C}");
+            lineas.Add($"- {nombreProducto} x {detalle.Cantidad} = {FormatearQuetzales(detalle.PrecioUnitario * detalle.Cantidad)}");
         }
 
         lineas.Add(string.Empty);
@@ -167,4 +167,7 @@ public class EmailNotificationService : IEmailNotificationService
 
         return (titulo, string.Join(Environment.NewLine, lineas));
     }
+
+    private static string FormatearQuetzales(decimal valor)
+        => $"Q{valor.ToString("#,##0.00", CultureInfo.InvariantCulture)}";
 }

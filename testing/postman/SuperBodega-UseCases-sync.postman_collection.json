@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "SuperBodega Use Cases",
+    "name": "SuperBodega Use Cases Sync",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "version": "2.0.0"
   },
@@ -99,54 +99,6 @@
             "exec": [
               "pm.test('Status 204', function () {",
               "  pm.response.to.have.status(204);",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Add Item to Carrito",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"ProductoId\": 2,\n  \"Cantidad\": 1\n}"
-        },
-        "url": "{{base_url}}/Carritos/{{clienteId}}/items"
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 200', function () {",
-              "  pm.response.to.have.status(200);",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Checkout Carrito Async",
-      "request": {
-        "method": "POST",
-        "header": [],
-        "url": "{{base_url}}/Carritos/{{clienteId}}/checkout/async"
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 202', function () {",
-              "  pm.response.to.have.status(202);",
               "});"
             ]
           }
@@ -459,106 +411,6 @@
         "method": "DELETE",
         "header": [],
         "url": "{{base_url}}/Compras/{{compraId}}"
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 204', function () {",
-              "  pm.response.to.have.status(204);",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Create Venta (async)",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"ClienteId\": 1,\n  \"Total\": 150.0,\n  \"Detalles\": [ { \"ProductoId\": 2, \"Cantidad\": 1, \"PrecioUnitario\": 150.0 } ]\n}"
-        },
-        "url": "{{base_url}}/Ventas"
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 201', function () {",
-              "  pm.response.to.have.status(201);",
-              "});",
-              "const body = pm.response.json();",
-              "pm.environment.set('ventaId', String(body.id));"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Get Venta",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{base_url}}/Ventas/{{ventaId}}"
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 200', function () {",
-              "  pm.response.to.have.status(200);",
-              "});",
-              "const body = pm.response.json();",
-              "pm.expect(body.id).to.eql(Number(pm.environment.get('ventaId')));"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Update Venta",
-      "request": {
-        "method": "PUT",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"Id\": {{ventaId}},\n  \"Fecha\": \"2026-05-28T00:00:00Z\",\n  \"ClienteId\": 1,\n  \"Total\": 150.0,\n  \"Detalles\": [ { \"ProductoId\": 2, \"Cantidad\": 1, \"PrecioUnitario\": 150.0 } ]\n}"
-        },
-        "url": "{{base_url}}/Ventas/{{ventaId}}"
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test('Status 200', function () {",
-              "  pm.response.to.have.status(200);",
-              "});"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "Delete Venta",
-      "request": {
-        "method": "DELETE",
-        "header": [],
-        "url": "{{base_url}}/Ventas/{{ventaId}}"
       },
       "event": [
         {

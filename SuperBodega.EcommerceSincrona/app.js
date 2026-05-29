@@ -29,9 +29,9 @@ function escapeHtml(text) {
 }
 
 function formatMoney(num) {
-    return new Intl.NumberFormat('es-CO', {
+    return new Intl.NumberFormat('es-GT', {
         style: 'currency',
-        currency: 'COP',
+        currency: 'GTQ',
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     }).format(num || 2);
@@ -332,7 +332,7 @@ async function loadCarrito() {
 
         if (!carrito.items || carrito.items.length === 0) {
             body.innerHTML = '<div class="alert alert-info">Tu carrito esta vacio.</div>';
-            document.getElementById('carritoTotal').textContent = '$0';
+            document.getElementById('carritoTotal').textContent = 'Q0';
             document.getElementById('btnProcesarVentaSync').disabled = true;
             return;
         }
@@ -490,7 +490,8 @@ async function init() {
     loadTienda();
 
     document.getElementById('tiendaGrid').addEventListener('click', onTiendaClick);
-    document.getElementById('btnRefrescar').addEventListener('click', () => loadTienda(currentPage));
+    const refreshButton = document.getElementById('btnRefrescar');
+    if (refreshButton) refreshButton.addEventListener('click', () => loadTienda(currentPage));
     document.getElementById('btnBuscar').addEventListener('click', () => loadTienda(1));
     document.getElementById('btnProcesarVentaSync').addEventListener('click', procesarVentaCarritoSync);
     document.getElementById('btnCarrito').addEventListener('click', openCarrito);

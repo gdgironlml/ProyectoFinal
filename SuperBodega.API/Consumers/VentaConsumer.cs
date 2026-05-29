@@ -26,7 +26,6 @@ public class VentaConsumer : IConsumer<VentaRealizadaEvent>
         {
             var mensaje = context.Message;
 
-            // Validar que el cliente existe en la base de datos
             var clienteExiste = await _context.Clientes.AnyAsync(c => c.Id == mensaje.ClienteId);
             if (!clienteExiste)
             {

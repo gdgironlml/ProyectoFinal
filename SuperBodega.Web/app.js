@@ -10,6 +10,19 @@ const state = {
     ventas: []
 };
 
+const CATEGORY_OPTIONS = [
+    'Abarrotes',
+    'Bebidas',
+    'Lacteos',
+    'Limpieza',
+    'Hogar',
+    'Snacks',
+    'Frutas y verduras',
+    'Carnes',
+    'Panaderia',
+    'Otros'
+];
+
 let compraRowCounter = 0;
 let ventaRowCounter = 0;
 
@@ -41,7 +54,13 @@ function setStatus(id, text) {
 }
 
 function formatMoney(value) {
-    return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD' }).format(Number(value ?? 0));
+    return new Intl.NumberFormat('es-GT', { style: 'currency', currency: 'GTQ' }).format(Number(value ?? 0));
+}
+
+function categoryOptions(selectedValue = '') {
+    return ['<option value="">Seleccione una categoría</option>']
+        .concat(CATEGORY_OPTIONS.map((category) => `<option value="${escapeHtml(category)}" ${category === selectedValue ? 'selected' : ''}>${escapeHtml(category)}</option>`))
+        .join('');
 }
 
 function getClientById(id) {
@@ -246,9 +265,10 @@ function purchaseProductOptions(selectedId = '', query = '') {
 
 function detailPurchaseRow(detail = {}) {
     const id = `compra-row-${++compraRowCounter}`;
-    const isNew = detail.productoId === 0 || detail.producto;
+    const isNew = detail.productoId === 0 && !detail.producto?.id;
     const selectedProduct = detail.producto || getProductById(detail.productoId);
     const searchValue = selectedProduct ? selectedProduct.nombre : '';
+    const locked = !isNew && !!selectedProduct;
 
     return `
         <div class="border rounded-3 p-3 mb-3 compra-detail-row" data-row-id="${id}">
@@ -280,11 +300,11 @@ function detailPurchaseRow(detail = {}) {
                 <div class="row g-2 mb-3 align-items-end">
                     <div class="col-md-6">
                         <label class="form-label">Buscar producto</label>
-                        <input type="text" class="form-control compra-producto-search" value="${escapeHtml(searchValue)}" placeholder="Ingrese nombre del producto...">
+                        <input type="text" class="form-control compra-producto-search" value="${escapeHtml(searchValue)}" placeholder="Ingrese nombre del producto..." ${locked ? 'readonly' : ''}>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Seleccione producto</label>
-                        <select class="form-select compra-producto-id">${purchaseProductOptions(detail.productoId || '', searchValue)}</select>
+                        <select class="form-select compra-producto-id" ${locked ? 'disabled' : ''}>${purchaseProductOptions(detail.productoId || '', searchValue)}</select>
                     </div>
                 </div>
             </div>
@@ -294,15 +314,19 @@ function detailPurchaseRow(detail = {}) {
                 <div class="row g-2 align-items-end">
                     <div class="col-md-6">
                         <label class="form-label">Nombre del producto</label>
-                        <input type="text" class="form-control compra-producto-nombre" value="${escapeHtml(detail.producto?.nombre || '')}" placeholder="Ingrese nombre...">
+                        <input type="text" class="form-control compra-producto-nombre" value="${escapeHtml(detail.producto?.nombre || '')}" placeholder="Ingrese nombre..." ${locked ? 'readonly' : ''}>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Descripción</label>
-                        <input type="text" class="form-control compra-producto-descripcion" value="${escapeHtml(detail.producto?.descripcion || '')}" placeholder="Ingrese descripción...">
+                        <input type="text" class="form-control compra-producto-descripcion" value="${escapeHtml(detail.producto?.descripcion || '')}" placeholder="Ingrese descripción..." ${locked ? 'readonly' : ''}>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Categoría</label>
+                        <select class="form-select compra-producto-categoria" ${locked ? 'disabled' : ''}>${categoryOptions(detail.producto?.categoria || '')}</select>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Precio Venta</label>
-                        <input type="number" min="0" step="0.01" class="form-control compra-producto-precio-venta" value="${detail.producto?.precio ?? 0}">
+                        <input type="number" min="0" step="0.01" class="form-control compra-producto-precio-venta" value="${detail.producto?.precio ?? 0}" ${locked ? 'readonly' : ''}>
                     </div>
                 </div>
             </div>
@@ -351,6 +375,7 @@ function readCompraDetails() {
         if (modo === 'new') {
             const nombre = row.querySelector('.compra-producto-nombre').value.trim();
             const descripcion = row.querySelector('.compra-producto-descripcion').value.trim() || null;
+            const categoria = row.querySelector('.compra-producto-categoria').value || null;
             const precioVenta = Number(row.querySelector('.compra-producto-precio-venta').value);
             return {
                 productoId: 0,
@@ -359,6 +384,7 @@ function readCompraDetails() {
                 producto: {
                     nombre,
                     descripcion,
+                    categoria,
                     precioCompra: precioUnitario,
                     precio: precioVenta,
                     stock: 0,
@@ -392,6 +418,7 @@ function resetProductForm() {
     document.getElementById('productoId').value = '';
     document.getElementById('productoNombre').value = '';
     document.getElementById('productoDescripcion').value = '';
+    document.getElementById('productoCategoria').value = '';
     document.getElementById('productoPrecioCompra').value = '';
     document.getElementById('productoPrecio').value = '';
     document.getElementById('productoStock').value = '';
@@ -421,6 +448,8 @@ function resetCompraForm() {
     document.getElementById('compraModoProveedor').value = 'existing';
     document.getElementById('compraProveedorId').value = '';
     document.getElementById('compraProveedorId').required = true;
+    document.getElementById('compraModoProveedor').disabled = false;
+    document.getElementById('compraProveedorId').disabled = false;
     document.getElementById('compraProveedorNombre').value = '';
     document.getElementById('compraProveedorEmail').value = '';
     document.getElementById('compraProveedorTelefono').value = '';
@@ -431,6 +460,32 @@ function resetCompraForm() {
     // Mostrar/ocultar grupos de proveedor
     document.querySelectorAll('.compra-proveedor-existing-group').forEach((el) => el.classList.remove('d-none'));
     document.querySelectorAll('.compra-proveedor-new-group').forEach((el) => el.classList.add('d-none'));
+}
+
+function setCompraEditState(isEditing, providerId = '') {
+    const modoProveedor = document.getElementById('compraModoProveedor');
+    const proveedorId = document.getElementById('compraProveedorId');
+    const existingGroups = document.querySelectorAll('.compra-proveedor-existing-group');
+    const newGroups = document.querySelectorAll('.compra-proveedor-new-group');
+
+    if (isEditing) {
+        modoProveedor.value = 'existing';
+        modoProveedor.disabled = true;
+        proveedorId.disabled = true;
+        proveedorId.required = false;
+        if (providerId) {
+            proveedorId.value = String(providerId);
+        }
+        existingGroups.forEach((el) => el.classList.remove('d-none'));
+        newGroups.forEach((el) => el.classList.add('d-none'));
+        return;
+    }
+
+    modoProveedor.disabled = false;
+    proveedorId.disabled = false;
+    proveedorId.required = true;
+    existingGroups.forEach((el) => el.classList.remove('d-none'));
+    newGroups.forEach((el) => el.classList.add('d-none'));
 }
 
 function resetVentaForm() {
@@ -450,7 +505,7 @@ async function loadProductos() {
 
         if (!state.productos || state.productos.length === 0) {
             setStatus('inventarioStatus', 'Sin registros');
-            renderEmptyRow('inventarioBody', 7, 'No hay productos activos.');
+            renderEmptyRow('inventarioBody', 8, 'No hay productos activos.');
             return;
         }
 
@@ -459,6 +514,7 @@ async function loadProductos() {
                 <td>${p.id}</td>
                 <td>${escapeHtml(p.nombre)}</td>
                 <td>${escapeHtml(p.descripcion || '')}</td>
+                <td>${escapeHtml(p.categoria || '')}</td>
                 <td>${formatMoney(p.precioCompra || 0)}</td>
                 <td>${formatMoney(p.precio)}</td>
                 <td>${p.stock}</td>
@@ -473,7 +529,7 @@ async function loadProductos() {
         setStatus('inventarioStatus', `${state.productos.length} registro(s)`);
     } catch (error) {
         setStatus('inventarioStatus', 'Error');
-        renderEmptyRow('inventarioBody', 7, error.message, 'danger');
+        renderEmptyRow('inventarioBody', 8, error.message, 'danger');
         showAlert(error.message, 'danger');
     }
 }
@@ -623,17 +679,38 @@ async function loadVentas() {
 }
 
 function refreshSelectors() {
+    const compraProveedorValue = document.getElementById('compraProveedorId')?.value || '';
+    const ventaClienteValue = document.getElementById('ventaClienteId')?.value || '';
+    const reporteProductoValue = document.getElementById('reporteProductoId')?.value || '';
+    const reporteClienteValue = document.getElementById('reporteClienteId')?.value || '';
+    const reporteProveedorValue = document.getElementById('reporteProveedorId')?.value || '';
+
     const compraProveedor = document.getElementById('compraProveedorId');
     const ventaCliente = document.getElementById('ventaClienteId');
     const reporteProducto = document.getElementById('reporteProductoId');
     const reporteCliente = document.getElementById('reporteClienteId');
     const reporteProveedor = document.getElementById('reporteProveedorId');
 
-    if (compraProveedor) compraProveedor.innerHTML = providerOptions();
-    if (ventaCliente) ventaCliente.innerHTML = clientOptions();
-    if (reporteProducto) reporteProducto.innerHTML = productOptions();
-    if (reporteCliente) reporteCliente.innerHTML = clientOptions();
-    if (reporteProveedor) reporteProveedor.innerHTML = providerOptions();
+    if (compraProveedor) {
+        compraProveedor.innerHTML = providerOptions(compraProveedorValue);
+        compraProveedor.value = compraProveedorValue;
+    }
+    if (ventaCliente) {
+        ventaCliente.innerHTML = clientOptions(ventaClienteValue);
+        ventaCliente.value = ventaClienteValue;
+    }
+    if (reporteProducto) {
+        reporteProducto.innerHTML = productOptions(reporteProductoValue);
+        reporteProducto.value = reporteProductoValue;
+    }
+    if (reporteCliente) {
+        reporteCliente.innerHTML = clientOptions(reporteClienteValue);
+        reporteCliente.value = reporteClienteValue;
+    }
+    if (reporteProveedor) {
+        reporteProveedor.innerHTML = providerOptions(reporteProveedorValue);
+        reporteProveedor.value = reporteProveedorValue;
+    }
 }
 
 function refreshSaleProductSelectors() {
@@ -707,6 +784,7 @@ async function onInventarioClick(event) {
             document.getElementById('productoId').value = p.id;
             document.getElementById('productoNombre').value = p.nombre || '';
             document.getElementById('productoDescripcion').value = p.descripcion || '';
+            document.getElementById('productoCategoria').value = p.categoria || '';
             document.getElementById('productoPrecioCompra').value = p.precioCompra || 0;
             document.getElementById('productoPrecio').value = p.precio;
             document.getElementById('productoStock').value = p.stock;
@@ -742,6 +820,7 @@ async function onSubmitProducto(event) {
         id: id ? Number(id) : 0,
         nombre: document.getElementById('productoNombre').value.trim(),
         descripcion: document.getElementById('productoDescripcion').value.trim() || null,
+        categoria: document.getElementById('productoCategoria').value || null,
         precioCompra: Number(document.getElementById('productoPrecioCompra').value),
         precio: Number(document.getElementById('productoPrecio').value),
         stock: Number(document.getElementById('productoStock').value),
@@ -1040,11 +1119,13 @@ async function onComprasTableClick(event) {
         const compra = await apiFetch(`/Compras/${id}`, { method: 'GET' }, 'obtener compra');
         document.getElementById('compraId').value = compra.id;
         document.getElementById('compraFecha').value = compra.fecha ? new Date(compra.fecha).toISOString().slice(0, 10) : '';
+        document.getElementById('compraModoProveedor').value = 'existing';
         document.getElementById('compraProveedorId').value = compra.proveedorId || '';
         document.getElementById('compraDetalles').innerHTML = '';
         (compra.detalles || []).forEach((detail) => addCompraDetail(detail));
         document.getElementById('compraTotal').value = Number(compra.total ?? calculateTotal(readCompraDetails())).toFixed(2);
         document.getElementById('compraGuardarBtn').textContent = 'Actualizar';
+        setCompraEditState(true, compra.proveedorId || '');
         refreshPurchaseProductSelectors();
         return;
     }
@@ -1329,10 +1410,13 @@ function setupEvents() {
     document.getElementById('compraCancelarBtn').addEventListener('click', resetCompraForm);
     document.getElementById('ventaCancelarBtn').addEventListener('click', resetVentaForm);
 
-    document.getElementById('btnRefrescarTodo').addEventListener('click', async () => {
-        await loadAll();
-        showAlert('Vista actualizada.', 'info');
-    });
+    const refreshAllButton = document.getElementById('btnRefrescarTodo');
+    if (refreshAllButton) {
+        refreshAllButton.addEventListener('click', async () => {
+            await loadAll();
+            showAlert('Vista actualizada.', 'info');
+        });
+    }
 
     document.getElementById('btnAgregarCompraDetalle').addEventListener('click', () => {
         addCompraDetail();

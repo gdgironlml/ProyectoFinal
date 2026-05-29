@@ -50,7 +50,6 @@ builder.Services.AddMassTransit(x =>
 
             e.ConfigureConsumer<VentaConsumer>(context);
 
-            // MassTransit mueve los mensajes fallidos a la cola específica del endpoint: ventas-realizadas_error.
         });
 
         cfg.ReceiveEndpoint("notificaciones-pedidos", e =>

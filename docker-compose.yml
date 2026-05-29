@@ -54,6 +54,7 @@ services:
       - RabbitMQ__Host=${RabbitMQ__Host}
       - RabbitMQ__Username=${RabbitMQ__Username}
       - RabbitMQ__Password=${RabbitMQ__Password}
+      
       - Email__Smtp__Host=${Email__Smtp__Host}
       - Email__Smtp__Port=${Email__Smtp__Port}
       - Email__Smtp__Username=${Email__Smtp__Username}

@@ -1,0 +1,178 @@
+{
+  "info": {
+    "name": "SuperBodega Use Cases Async",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.0.0"
+  },
+  "item": [
+    {
+      "name": "List Productos",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/Productos"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create Cliente",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"Nombre\": \"Cliente {{$timestamp}}\",\n  \"Telefono\": \"555{{$timestamp}}\",\n  \"Email\": \"cliente{{$timestamp}}@example.com\"\n}"
+        },
+        "url": "{{base_url}}/Clientes"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "const body = pm.response.json();",
+              "pm.environment.set('clienteId', String(body.id));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get Cliente",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/Clientes/{{clienteId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "const body = pm.response.json();",
+              "pm.expect(body.id).to.eql(Number(pm.environment.get('clienteId')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update Cliente",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"Id\": {{clienteId}},\n  \"Nombre\": \"Cliente {{$timestamp}} Actualizado\",\n  \"Telefono\": \"556{{$timestamp}}\",\n  \"Email\": \"cliente{{$timestamp}}@example.com\"\n}"
+        },
+        "url": "{{base_url}}/Clientes/{{clienteId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 204', function () {",
+              "  pm.response.to.have.status(204);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Add Item to Carrito",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ProductoId\": 2,\n  \"Cantidad\": 1\n}"
+        },
+        "url": "{{base_url}}/Carritos/{{clienteId}}/items"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Checkout Carrito Async",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{base_url}}/Carritos/{{clienteId}}/checkout/async"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 202', function () {",
+              "  pm.response.to.have.status(202);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Delete Cliente",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{base_url}}/Clientes/{{clienteId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status 204', function () {",
+              "  pm.response.to.have.status(204);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

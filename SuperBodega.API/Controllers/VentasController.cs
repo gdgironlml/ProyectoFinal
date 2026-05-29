@@ -24,6 +24,7 @@ public class VentasController : ControllerBase
     public async Task<IEnumerable<Venta>> Get() => await _db.Ventas
         .Include(v => v.Cliente)
         .Include(v => v.Detalles)
+            .ThenInclude(d => d.Producto)
         .ToListAsync();
 
     [HttpGet("{id}")]
@@ -32,6 +33,7 @@ public class VentasController : ControllerBase
         var e = await _db.Ventas
             .Include(v => v.Cliente)
             .Include(v => v.Detalles)
+                .ThenInclude(d => d.Producto)
             .FirstOrDefaultAsync(v => v.Id == id);
         if (e == null) return NotFound();
         return e;
@@ -74,6 +76,7 @@ public class VentasController : ControllerBase
         return await _db.Ventas
             .Include(v => v.Cliente)
             .Include(v => v.Detalles)
+                .ThenInclude(d => d.Producto)
             .Where(v => v.Fecha >= fromDate && v.Fecha <= toDate)
             .ToListAsync();
     }
@@ -93,6 +96,7 @@ public class VentasController : ControllerBase
         return await _db.Ventas
             .Include(v => v.Cliente)
             .Include(v => v.Detalles)
+                .ThenInclude(d => d.Producto)
             .Where(v => v.ClienteId == clienteId)
             .ToListAsync();
     }
