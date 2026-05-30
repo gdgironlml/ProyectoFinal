@@ -4,9 +4,9 @@ Proyecto de gestion de bodega con una API en .NET y frontends web para administr
 
 ## UIs Publicadas
 
-- SuperBodega.Web: PENDIENTE_URL
-- SuperBodega.Ecommerce: PENDIENTE_URL
-- SuperBodega.EcommerceSincrona: PENDIENTE_URL
+- SuperBodega.Web: https://superbodegaadming4.netlify.app/
+- SuperBodega.Ecommerce: https://superbodegaclienteasyncg4.netlify.app/
+- SuperBodega.EcommerceSincrona: https://superbodegaclientesincg4.netlify.app/
 
 ## API Publicada
 
