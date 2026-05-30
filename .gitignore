@@ -8,3 +8,4 @@ reports/*.md
 !reports/resumen-pruebas.md
 SuperBodega.API/appsettings.Development.local.json
 SuperBodega.API/appsettings.Local.json
+MVSuperBodega_key.pem

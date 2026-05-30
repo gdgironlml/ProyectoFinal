@@ -99,6 +99,10 @@ Ambos servicios tienen health checks configurados:
 - Verifica que estés usando `rabbitmq` como host (no `localhost`)
 - Los contenedores usan la red `bodega-network` para comunicarse
 
+### Publicación sin ngrok
+- La API queda expuesta por el puerto `8080` del contenedor
+- Si publicas en una VM o servidor, puedes mapear `8080` a un puerto público o usar un proxy inverso
+
 ### Puertos ya ocupados
 Si los puertos están ocupados, edita `docker-compose.yml`:
 ```yaml

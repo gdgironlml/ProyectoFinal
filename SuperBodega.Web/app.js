@@ -1,6 +1,5 @@
-// Para probar con localhost
-// const API_BASE = 'http://localhost:8080/api';
-const API_BASE = 'https://refill-blurt-utter.ngrok-free.dev/api';
+// En Netlify, usar ruta relativa para que _redirects haga proxy al backend en Azure.
+const API_BASE = '/api';
 
 const state = {
     productos: [],
@@ -171,7 +170,6 @@ async function apiFetch(endpoint, options = {}, action = 'realizar la solicitud'
         ...options,
         method,
         headers: {
-            'ngrok-skip-browser-warning': 'true',
             ...(options.headers || {})
         }
     };
@@ -500,14 +498,17 @@ function resetVentaForm() {
 async function loadProductos() {
     setStatus('inventarioStatus', 'Cargando...');
     try {
-        state.productos = await apiFetch('/Productos', { method: 'GET' }, 'cargar productos');
+        state.productos = await apiFetch('/Productos/all', { method: 'GET' }, 'cargar productos');
         const body = document.getElementById('inventarioBody');
 
         if (!state.productos || state.productos.length === 0) {
             setStatus('inventarioStatus', 'Sin registros');
-            renderEmptyRow('inventarioBody', 8, 'No hay productos activos.');
+            renderEmptyRow('inventarioBody', 9, 'No hay productos.');
             return;
         }
+
+        const activos = state.productos.filter((p) => p.activo !== false).length;
+        const inactivos = state.productos.length - activos;
 
         body.innerHTML = state.productos.map((p) => `
             <tr>
@@ -518,15 +519,17 @@ async function loadProductos() {
                 <td>${formatMoney(p.precioCompra || 0)}</td>
                 <td>${formatMoney(p.precio)}</td>
                 <td>${p.stock}</td>
-                <td><span class="badge text-bg-success">Activo</span></td>
+                <td><span class="badge ${p.activo === false ? 'text-bg-secondary' : 'text-bg-success'}">${p.activo === false ? 'Inactivo' : 'Activo'}</span></td>
                 <td>
                     <button class="btn btn-sm btn-outline-primary me-1 btn-editar-producto" data-id="${p.id}">Editar</button>
-                    <button class="btn btn-sm btn-outline-danger btn-eliminar-producto" data-id="${p.id}">Desactivar</button>
+                    ${p.activo === false
+                        ? `<button class="btn btn-sm btn-outline-success btn-activar-producto" data-id="${p.id}">Activar</button>`
+                        : `<button class="btn btn-sm btn-outline-danger btn-eliminar-producto" data-id="${p.id}">Desactivar</button>`}
                 </td>
             </tr>
         `).join('');
 
-        setStatus('inventarioStatus', `${state.productos.length} registro(s)`);
+        setStatus('inventarioStatus', `${state.productos.length} registro(s) · ${activos} activos · ${inactivos} inactivos`);
     } catch (error) {
         setStatus('inventarioStatus', 'Error');
         renderEmptyRow('inventarioBody', 8, error.message, 'danger');
@@ -776,6 +779,7 @@ async function loadAll() {
 async function onInventarioClick(event) {
     const editBtn = event.target.closest('.btn-editar-producto');
     const delBtn = event.target.closest('.btn-eliminar-producto');
+    const activateBtn = event.target.closest('.btn-activar-producto');
 
     if (editBtn) {
         const id = Number(editBtn.dataset.id);
@@ -805,6 +809,28 @@ async function onInventarioClick(event) {
         try {
             await apiFetch(`/Productos/${id}`, { method: 'DELETE' }, 'desactivar producto');
             showAlert('Producto desactivado.', 'success');
+            await loadAll();
+        } catch (error) {
+            showAlert(error.message, 'danger');
+        }
+        return;
+    }
+
+    if (activateBtn) {
+        const id = Number(activateBtn.dataset.id);
+        const ok = confirm(`¿Deseas activar el producto #${id}?`);
+        if (!ok) return;
+
+        try {
+            const producto = await apiFetch(`/Productos/${id}`, { method: 'GET' }, 'obtener producto');
+            await apiFetch(`/Productos/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    ...producto,
+                    activo: true
+                })
+            }, 'activar producto');
+            showAlert('Producto activado.', 'success');
             await loadAll();
         } catch (error) {
             showAlert(error.message, 'danger');

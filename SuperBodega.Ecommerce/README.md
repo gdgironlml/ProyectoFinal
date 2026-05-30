@@ -40,13 +40,13 @@ Puedes servir estos archivos directamente desde tu API E-Commerce:
 
 ## Configuración
 
-El API base está configurado en **app.js**:
+El API base esta configurado en **app.js**:
 
 ```javascript
-const API_BASE = 'http://localhost:5253';
+const API_BASE = '/api';
 ```
 
-Cambia `localhost:5253` si tu SuperBodega.API está en otro puerto o servidor.
+En Netlify, la ruta `/api` se resuelve con `_redirects` hacia la API publicada en Azure.
 
 ## Notas importantes
 

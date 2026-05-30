@@ -9,7 +9,7 @@ export const options = {
   }
 };
 
-const BASE = __ENV.BASE_URL || 'https://refill-blurt-utter.ngrok-free.dev/api';
+const BASE = __ENV.BASE_URL || 'http://localhost:8080/api';
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 const syncRequests = new Counter('sync_requests_total');

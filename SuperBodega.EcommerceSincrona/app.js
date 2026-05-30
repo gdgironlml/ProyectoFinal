@@ -1,6 +1,5 @@
-// Para probar con locarlhost
-// const API_BASE = 'http://localhost:8080/api';
-const API_BASE = 'https://refill-blurt-utter.ngrok-free.dev/api';
+// En Netlify, usar ruta relativa para que _redirects haga proxy al backend en Azure.
+const API_BASE = '/api';
 
 const CLIENT_STORAGE_KEY = 'superbodega.ecommerce.sync.client';
 const carritoModalEl = document.getElementById('carritoModal');
@@ -125,7 +124,6 @@ async function apiFetch(url, options = {}, action = 'procesar') {
     try {
         const method = (options.method || 'GET').toUpperCase();
         const headers = {
-            'ngrok-skip-browser-warning': 'true',
             ...(options.headers || {})
         };
 
