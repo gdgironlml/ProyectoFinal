@@ -6,6 +6,7 @@ using SuperBodega.API.Models;
 
 namespace SuperBodega.API.Services;
 
+// Error cuando el stock no alcanza.
 public class StockInsuficienteException : Exception
 {
     public StockInsuficienteException(string message) : base(message)
@@ -13,6 +14,7 @@ public class StockInsuficienteException : Exception
     }
 }
 
+// Logica central de compras, ventas e inventario.
 public class InventarioService
 {
     private readonly BodegaContext _db;
@@ -29,6 +31,7 @@ public class InventarioService
         _publishEndpoint = publishEndpoint;
         _logger = logger;
     }
+    // Registra una compra y aumenta stock.
     public async Task<Compra> RegistrarCompraAsync(Compra compra)
     {
         using var tx = await _db.Database.BeginTransactionAsync();
@@ -98,6 +101,7 @@ public class InventarioService
         }
     }
 
+    // Registra una venta y descuenta stock.
     public async Task<Venta> RegistrarVentaAsync(Venta venta)
     {
         using var tx = await _db.Database.BeginTransactionAsync();
@@ -169,6 +173,7 @@ public class InventarioService
         }
     }
 
+    // Actualiza una compra y recalcula inventario.
     public async Task<Compra> UpdateCompraAsync(int id, Compra compra)
     {
         using var tx = await _db.Database.BeginTransactionAsync();
@@ -252,6 +257,7 @@ public class InventarioService
         }
     }
 
+    // Actualiza una venta y recalcula inventario.
     public async Task<Venta> UpdateVentaAsync(int id, Venta venta)
     {
         using var tx = await _db.Database.BeginTransactionAsync();
@@ -336,6 +342,7 @@ public class InventarioService
         }
     }
 
+    // Cambia el estado de una compra.
     public async Task<Compra> CambiarEstadoCompraAsync(int id, string estado)
     {
         using var tx = await _db.Database.BeginTransactionAsync();
@@ -378,6 +385,7 @@ public class InventarioService
         }
     }
 
+    // Cambia el estado de una venta y publica notificaciones.
     public async Task<Venta> CambiarEstadoVentaAsync(int id, string estado)
     {
         using var tx = await _db.Database.BeginTransactionAsync();
@@ -447,6 +455,7 @@ public class InventarioService
             || string.Equals(estado, EstadoEntregada, StringComparison.OrdinalIgnoreCase);
     }
 
+    // Publica el evento de notificacion en RabbitMQ.
     private async Task PublicarNotificacionPedidoAsync(int ventaId, string estado)
     {
         const int maxAttempts = 3;

@@ -7,12 +7,12 @@ using SuperBodega.API.Services;
  
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Configuracion base de la API.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configure CORS
+// Permite acceso desde el frontend y las pruebas.
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("PermitirTodo", policy =>
@@ -27,6 +27,7 @@ var rabbitMqHost = Environment.GetEnvironmentVariable("RabbitMQ__Host") ?? "loca
 var rabbitMqUsername = Environment.GetEnvironmentVariable("RabbitMQ__Username") ?? "user";
 var rabbitMqPassword = Environment.GetEnvironmentVariable("RabbitMQ__Password") ?? "password";
 
+// RabbitMQ mueve eventos de ventas y notificaciones.
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<VentaConsumer>();
@@ -60,7 +61,7 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
-// Connection string to SQL Server
+// Toma la conexion de SQL Server desde configuracion.
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? "Server=localhost;Database=SuperBodegaDB;User Id=sa;Password=SecurePassword;TrustServerCertificate=True;";
 builder.Services.AddDbContext<BodegaContext>(options => options.UseSqlServer(connectionString));
@@ -69,13 +70,14 @@ builder.Services.AddScoped<IEmailNotificationService, EmailNotificationService>(
 
 var app = builder.Build();
 
+// Ejecuta migraciones al arrancar.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<BodegaContext>();
     db.Database.Migrate();
 }
 
-// Configure the HTTP request pipeline.
+// Publica la documentacion Swagger.
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -85,9 +87,9 @@ app.UseSwaggerUI(c =>
 
 app.UseHttpsRedirection();
 
+// Habilita rutas y CORS.
 app.UseRouting();
 
-// Use CORS
 app.UseCors("PermitirTodo");
 
 app.MapControllers();

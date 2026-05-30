@@ -7,6 +7,7 @@ using SuperBodega.API.Services;
 
 namespace SuperBodega.API.Controllers;
 
+// CRUD de compras para administrar inventario.
 [ApiController]
 [Route("api/[controller]")]
 public class ComprasController : ControllerBase
@@ -20,6 +21,7 @@ public class ComprasController : ControllerBase
         _inv = inv;
     }
 
+    // Lista compras con proveedor y detalles.
     [HttpGet]
     public async Task<IEnumerable<Compra>> Get() => await _db.Compras
         .Include(c => c.Proveedor)
@@ -27,6 +29,7 @@ public class ComprasController : ControllerBase
             .ThenInclude(d => d.Producto)
         .ToListAsync();
 
+    // Obtiene una compra por ID.
     [HttpGet("{id}")]
     public async Task<ActionResult<Compra>> Get(int id)
     {
@@ -39,6 +42,7 @@ public class ComprasController : ControllerBase
         return e;
     }
 
+    // Registra una compra nueva.
     [HttpPost]
     public async Task<ActionResult<Compra>> Post(Compra compra)
     {
@@ -46,6 +50,7 @@ public class ComprasController : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
     }
 
+    // Actualiza una compra existente.
     [HttpPut("{id}")]
     public async Task<IActionResult> Put(int id, Compra compra)
     {
@@ -54,6 +59,7 @@ public class ComprasController : ControllerBase
         return Ok(updated);
     }
 
+    // Elimina una compra.
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
@@ -61,6 +67,7 @@ public class ComprasController : ControllerBase
         return NoContent();
     }
 
+    // Cambia el estado de la compra.
     [HttpPatch("{id}/estado")]
     public async Task<ActionResult<Compra>> PatchEstado(int id, [FromBody] EstadoCambioRequest request)
     {

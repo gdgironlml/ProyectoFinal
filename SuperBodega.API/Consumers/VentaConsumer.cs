@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SuperBodega.API.Consumers;
 
+// Consume eventos de ventas asíncronas desde RabbitMQ.
 public class VentaConsumer : IConsumer<VentaRealizadaEvent>
 {
     private readonly InventarioService _inventarioService;

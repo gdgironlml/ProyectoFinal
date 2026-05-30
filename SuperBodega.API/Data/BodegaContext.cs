@@ -3,12 +3,14 @@ using SuperBodega.API.Models;
 
 namespace SuperBodega.API.Data;
 
+// Contexto principal de Entity Framework.
 public class BodegaContext : DbContext
 {
     public BodegaContext(DbContextOptions<BodegaContext> options) : base(options)
     {
     }
 
+    // Tablas del negocio.
     public DbSet<Producto> Productos { get; set; } = null!;
     public DbSet<Proveedor> Proveedores { get; set; } = null!;
     public DbSet<Cliente> Clientes { get; set; } = null!;
@@ -19,11 +21,12 @@ public class BodegaContext : DbContext
     public DbSet<Carrito> Carritos { get; set; } = null!;
     public DbSet<CarritoItem> CarritoItems { get; set; } = null!;
 
+// Se crea la estructura de la base de datos en C# gracias a EF Core
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // Configurar precisión decimal para Producto
+        // Define precisiones y relaciones para evitar inconsistencias.
         modelBuilder.Entity<Producto>()
             .Property(p => p.Precio)
             .HasColumnType("decimal(18,2)");
@@ -34,17 +37,14 @@ public class BodegaContext : DbContext
             .HasForeignKey(p => p.ProveedorId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Configurar precisión decimal para Venta
         modelBuilder.Entity<Venta>()
             .Property(v => v.Total)
             .HasColumnType("decimal(18,2)");
 
-        // Configurar precisión decimal para DetalleVenta
         modelBuilder.Entity<DetalleVenta>()
             .Property(dv => dv.PrecioUnitario)
             .HasColumnType("decimal(18,2)");
 
-        // Configurar precisión decimal para DetalleCompra
         modelBuilder.Entity<DetalleCompra>()
             .Property(dc => dc.PrecioUnitario)
             .HasColumnType("decimal(18,2)");

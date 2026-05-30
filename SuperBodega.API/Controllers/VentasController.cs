@@ -7,6 +7,7 @@ using SuperBodega.API.Services;
 
 namespace SuperBodega.API.Controllers;
 
+// CRUD de ventas y reportes operativos.
 [ApiController]
 [Route("api/[controller]")]
 public class VentasController : ControllerBase
@@ -20,6 +21,7 @@ public class VentasController : ControllerBase
         _inv = inv;
     }
 
+    // Lista ventas con cliente y detalles.
     [HttpGet]
     public async Task<IEnumerable<Venta>> Get() => await _db.Ventas
         .Include(v => v.Cliente)
@@ -27,6 +29,7 @@ public class VentasController : ControllerBase
             .ThenInclude(d => d.Producto)
         .ToListAsync();
 
+    // Obtiene una venta por ID.
     [HttpGet("{id}")]
     public async Task<ActionResult<Venta>> Get(int id)
     {
@@ -39,6 +42,7 @@ public class VentasController : ControllerBase
         return e;
     }
 
+    // Registra una venta nueva.
     [HttpPost]
     public async Task<ActionResult<Venta>> Post(Venta venta)
     {
@@ -46,6 +50,7 @@ public class VentasController : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
     }
 
+    // Actualiza una venta existente.
     [HttpPut("{id}")]
     public async Task<IActionResult> Put(int id, Venta venta)
     {
@@ -54,6 +59,7 @@ public class VentasController : ControllerBase
         return Ok(updated);
     }
 
+    // Elimina una venta.
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
@@ -61,6 +67,7 @@ public class VentasController : ControllerBase
         return NoContent();
     }
 
+    // Cambia el estado de la venta.
     [HttpPatch("{id}/estado")]
     public async Task<ActionResult<Venta>> PatchEstado(int id, [FromBody] EstadoCambioRequest request)
     {
@@ -68,6 +75,7 @@ public class VentasController : ControllerBase
         return Ok(updated);
     }
 
+    // Reporte de ventas por rango de fechas.
     [HttpGet("report/period")]
     public async Task<IEnumerable<Venta>> ReportByPeriod(DateTime from, DateTime to)
     {
@@ -81,6 +89,7 @@ public class VentasController : ControllerBase
             .ToListAsync();
     }
 
+    // Reporte de ventas por producto.
     [HttpGet("report/product/{productId}")]
     public async Task<IActionResult> ReportByProduct(int productId)
     {
@@ -90,6 +99,7 @@ public class VentasController : ControllerBase
         return Ok(new { productId, totalCantidad, totalVentas, detalles });
     }
 
+    // Reporte de ventas por cliente.
     [HttpGet("report/cliente/{clienteId}")]
     public async Task<IEnumerable<Venta>> ReportByCliente(int clienteId)
     {
@@ -101,6 +111,7 @@ public class VentasController : ControllerBase
             .ToListAsync();
     }
 
+    // Reporte de ventas por proveedor.
     [HttpGet("report/proveedor/{proveedorId}")]
     public async Task<IActionResult> ReportByProveedor(int proveedorId)
     {
